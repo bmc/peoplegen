@@ -9,6 +9,8 @@ changed via command line options.
 Output is in CSV format, by default, though the column separator can be
 changed.
 
+As is probably obvious, I use this script to generate test data.
+
 # Usage
 
     Usage: namegen.rb [options] total
