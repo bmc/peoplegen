@@ -31,28 +31,22 @@ def load_names_file(name)
   File.open(File.join(DATA_DIR, name)).readlines.map { |s| s.chomp.capitalize }
 end
 
+def generate(total, file, last_names, gender, csv)
+  first_names = load_names_file(file)
+  (1..total).each do
+    first_name = first_names[rand(first_names.length)]
+    last_name  = last_names[rand(last_names.length)]
+    csv << [first_name, last_name, gender]
+  end
+end
+
 def generate_names(total_male, total_female, separator=",")
   last_names = load_names_file("last_names.txt")
 
   CSV.generate(:col_sep => separator) do |csv|
-    if total_female > 0
-      first_names = load_names_file("female_first_names.txt")
-
-      (1..total_female).each do
-        first_name = first_names[rand(first_names.length)]
-        last_name  = last_names[rand(last_names.length)]
-        csv << [first_name, last_name, "F"]
-      end
-    end
-
-    if total_male > 0
-      first_names = load_names_file("male_first_names.txt")
-
-      (1..total_male).each do
-        first_name = first_names[rand(first_names.length)]
-        last_name  = last_names[rand(last_names.length)]
-        csv << [first_name, last_name, "M"]
-      end
+    [[total_female, "female_first_names.txt", "F"],
+     [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
+      generate(total, file, last_names, gender, csv) if total > 0
     end
   end
 end
@@ -132,25 +126,20 @@ if (options[:male_percent] + options[:female_percent]) != 100
   die "Male and female percentage values don't add up to 100"
 end
 
-# case (female_percent + male_percent)
-# when 100
-# when 0
-#   female_percent = 50
-#   male_percent   = 50
-# else
-#   if options[:male_percent].nil?
-#     male_percent = 100 - female_percent
-#   elsif options[:female_percent].nil?
-#     female_percent = 100 - male_percent
-#   else
-#     die "Male/female percentage values don't add up to 100."
-#   end
-# end
-
 total = ARGV[0].to_i
 
-total_male = (total * options[:male_percent]) / 100
-total_female = (total * options[:female_percent]) / 100
-raise "Assertion failed." unless (total_male + total_female) == total
+totals = {
+  :male   => (total * options[:male_percent]) / 100,
+  :female => (total * options[:female_percent]) / 100
+}
 
-puts generate_names(total_male, total_female, options[:field_sep])
+# Handle division slop.
+i = 0
+while (totals[:male] + totals[:female]) < total
+  which = ((i % 2) == 0) ? :male : :female
+  totals[which] += 1
+end
+
+raise "Assertion failed." unless (totals[:male] + totals[:female]) == total
+
+puts generate_names(totals[:male], totals[:female], options[:field_sep])
