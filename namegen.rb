@@ -31,23 +31,40 @@ def load_names_file(name)
   File.open(File.join(DATA_DIR, name)).readlines.map { |s| s.chomp.capitalize }
 end
 
-def generate(total, file, last_names, gender, csv)
+def generate(total, file, last_names, gender)
   first_names = load_names_file(file)
-  (1..total).each do
+  (1..total).map do |i|
     first_name = first_names[rand(first_names.length)]
     last_name  = last_names[rand(last_names.length)]
-    csv << [first_name, last_name, gender]
+    [first_name, last_name, gender]
   end
 end
 
-def generate_names(total_male, total_female, separator=",")
+def generate_names(total_male, total_female, options = {})
   last_names = load_names_file("last_names.txt")
+  separator = options[:field_sep] || ","
+  format = options[:format] || "text"
 
-  CSV.generate(:col_sep => separator) do |csv|
-    [[total_female, "female_first_names.txt", "F"],
-     [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
-      generate(total, file, last_names, gender, csv) if total > 0
+  buf = []
+  [[total_female, "female_first_names.txt", "F"],
+   [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
+    if total > 0
+      generate(total, file, last_names, gender).each {|x| buf << x}
     end
+  end
+
+  case format
+  when :text
+    buf.map {|x| "#{x[0]} #{x[1]} (#{x[2]})"}
+
+  when :csv
+    CSV.generate(:col_sep => separator) do |csv|
+      buf.each {|s| csv << s}
+    end
+
+  else
+    # Should have been caught during option parsing.
+    die "(BUG) Bad output format: \"#{format}\""
   end
 end
 
@@ -61,9 +78,10 @@ end
 # ---------------------------------------------------------------------------
 
 options = {
-  :female_percent => nil,
-  :male_percent   => nil,
-  :field_sep      => ","
+  female_percent: nil,
+  male_percent:   nil,
+  field_sep:      ",",
+  format:         :text
 }
 
 optparse = OptionParser.new do |opts|
@@ -94,6 +112,11 @@ optparse = OptionParser.new do |opts|
     options[:male_percent] = parse_percent(pct, "--male")
   end
 
+  opts.on("-F", "--format FORMAT", "Specify output format: text, csv") do |s|
+    die "Bad value of \"#{s}\" for --format" unless ["text", "csv"].include? s
+    options[:format] = s.to_sym
+  end
+
   opts.on("-s", "--sep STR", "Output field separator. Default: ,") do |s|
     options[:field_sep] = s
   end
@@ -101,31 +124,25 @@ end
 
 optparse.parse!
 
+if options[:female_percent].nil? && options[:male_percent].nil?
+  options[:female_percent] = options[:male_percent] = 50
+elsif options[:female_percent] && options[:male_percent].nil?
+  options[:male_percent] = 100 - options[:female_percent]
+elsif options[:female_percent].nil? && options[:male_percent]
+  options[:female_percent] = 100 - options[:male_percent]
+end
+
+if options[:female_percent] + options[:male_percent] != 100
+  die("--male and --female percentage values don't add up to 100")
+end
+
 die optparse.to_s unless ARGV.length == 1
 
 # ---------------------------------------------------------------------------
 # Main logic
 # ---------------------------------------------------------------------------
 
-female_percent = options[:female_percent] || 0
-male_percent   = options[:male_percent] || 0
-
-case
-when options[:female_percent].nil? && options[:male_percent].nil?
-  options[:female_percent] = 50
-  options[:male_percent]   = 50
-
-when options[:female_percent].nil?
-  options[:female_percent] = 100 - options[:male_percent]
-
-when options[:male_percent].nil?
-  options[:male_percent] = 100 - options[:female_percent]
-end
-
-if (options[:male_percent] + options[:female_percent]) != 100
-  die "Male and female percentage values don't add up to 100"
-end
-
+die "Bad total: #{ARGV[0]}" unless ARGV[0] =~ /^\d+$/
 total = ARGV[0].to_i
 
 totals = {
@@ -142,4 +159,4 @@ end
 
 raise "Assertion failed." unless (totals[:male] + totals[:female]) == total
 
-puts generate_names(totals[:male], totals[:female], options[:field_sep])
+puts generate_names(totals[:male], totals[:female], options)
