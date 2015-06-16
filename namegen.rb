@@ -16,6 +16,7 @@
 
 require 'optparse'
 require 'csv'
+require 'json'
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -61,6 +62,12 @@ def generate_names(total_male, total_female, options = {})
     CSV.generate(:col_sep => separator) do |csv|
       buf.each {|s| csv << s}
     end
+
+  when :json
+    data = buf.map do |arr|
+      { firstName: arr[0], lastName: arr[1], gender: arr[2]}
+    end
+    JSON.dump(data)
 
   else
     # Should have been caught during option parsing.
@@ -112,8 +119,8 @@ optparse = OptionParser.new do |opts|
     options[:male_percent] = parse_percent(pct, "--male")
   end
 
-  opts.on("-F", "--format FORMAT", "Specify output format: text, csv") do |s|
-    die "Bad value of \"#{s}\" for --format" unless ["text", "csv"].include? s
+  opts.on("-F", "--format FORMAT", "Specify output format: json, text, csv") do |s|
+    die "Bad value of \"#{s}\" for --format" unless ["text", "csv", "json"].include? s
     options[:format] = s.to_sym
   end
 
