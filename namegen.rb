@@ -49,9 +49,10 @@ end
 def generate(total, file, last_names, gender)
   first_names = load_names_file(file)
   (1..total).map do |i|
-    first_name = first_names[rand(first_names.length)]
-    last_name  = last_names[rand(last_names.length)]
-    [first_name, last_name, gender, birth_date]
+    first_name  = first_names[rand(first_names.length)]
+    middle_name = first_names[rand(first_names.length)]
+    last_name   = last_names[rand(last_names.length)]
+    [first_name, middle_name, last_name, gender, birth_date]
   end
 end
 
@@ -84,8 +85,8 @@ def generate_names(total_male, total_female, options = {})
 
   when :json
     data = buf.map do |arr|
-      o = { firstName: arr.shift, lastName: arr.shift, gender: arr.shift,
-            birthDate: arr.shift }
+      o = { firstName: arr.shift, middleName: arr.shift, lastName: arr.shift,
+            gender: arr.shift, birthDate: arr.shift }
       if options[:ssn]
         o[:ssn] = arr.shift
       end
