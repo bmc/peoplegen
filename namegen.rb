@@ -17,6 +17,7 @@
 require 'optparse'
 require 'csv'
 require 'json'
+require 'date'
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -32,32 +33,50 @@ def load_names_file(name)
   File.open(File.join(DATA_DIR, name)).readlines.map { |s| s.chomp.capitalize }
 end
 
+SSN_AREAS = (900..999).to_a + [666]
+def birth_date
+  today = Date.today
+  rand(Date.civil(today.year - 100, 1, 1)..today)
+end
+
+def make_fake_ssn
+  area = SSN_AREAS[rand(SSN_AREAS.length)]
+  second = rand(10..99)
+  third = rand(1000..9999)
+  "#{area}-#{second}-#{third}"
+end
+
 def generate(total, file, last_names, gender)
   first_names = load_names_file(file)
   (1..total).map do |i|
     first_name = first_names[rand(first_names.length)]
     last_name  = last_names[rand(last_names.length)]
-    [first_name, last_name, gender]
+    [first_name, last_name, gender, birth_date]
   end
 end
 
 def generate_names(total_male, total_female, options = {})
   last_names = load_names_file("last_names.txt")
   separator = options[:field_sep] || ","
-  format = options[:format] || "text"
+  format = options[:format] || "csv"
 
   buf = []
   [[total_female, "female_first_names.txt", "F"],
    [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
     if total > 0
-      generate(total, file, last_names, gender).each {|x| buf << x}
+      generate(total, file, last_names, gender).each do |x| 
+        if options[:ssn]
+          x << make_fake_ssn
+        end
+        if options[:salary]
+          x << rand(options[:salary])
+        end
+        buf << x
+      end
     end
   end
 
   case format
-  when :text
-    buf.map {|x| "#{x[0]} #{x[1]} (#{x[2]})"}
-
   when :csv
     CSV.generate(:col_sep => separator) do |csv|
       buf.each {|s| csv << s}
@@ -65,7 +84,15 @@ def generate_names(total_male, total_female, options = {})
 
   when :json
     data = buf.map do |arr|
-      { firstName: arr[0], lastName: arr[1], gender: arr[2]}
+      o = { firstName: arr.shift, lastName: arr.shift, gender: arr.shift,
+            birthDate: arr.shift }
+      if options[:ssn]
+        o[:ssn] = arr.shift
+      end
+      if options[:salary]
+        o[:salary] = arr.shift
+      end
+      o
     end
     JSON.dump(data)
 
@@ -88,7 +115,7 @@ options = {
   female_percent: nil,
   male_percent:   nil,
   field_sep:      ",",
-  format:         :text
+  format:         :csv
 }
 
 optparse = OptionParser.new do |opts|
@@ -119,8 +146,22 @@ optparse = OptionParser.new do |opts|
     options[:male_percent] = parse_percent(pct, "--male")
   end
 
-  opts.on("-F", "--format FORMAT", "Specify output format: json, text, csv") do |s|
-    die "Bad value of \"#{s}\" for --format" unless ["text", "csv", "json"].include? s
+  opts.on("--ssn", "Generate social security numbers") do
+    options[:ssn] = true
+  end
+
+  opts.on("--salary RANGE", "Generate salaries") do |range|
+    lower, upper = range.split("-")
+    lower = lower.to_i
+    upper = upper.to_i
+    if lower == 0 || upper == 0 || lower > upper
+      die "Invalid salary range"
+    end
+    options[:salary] = lower..upper
+  end
+
+  opts.on("-F", "--format FORMAT", "Specify output format: json, csv") do |s|
+    die "Bad value of \"#{s}\" for --format" unless ["csv", "json"].include? s
     options[:format] = s.to_sym
   end
 
