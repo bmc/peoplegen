@@ -65,7 +65,7 @@ def generate_names(total_male, total_female, options = {})
   [[total_female, "female_first_names.txt", "F"],
    [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
     if total > 0
-      generate(total, file, last_names, gender).each do |x| 
+      generate(total, file, last_names, gender).each do |x|
         if options[:ssn]
           x << make_fake_ssn
         end
