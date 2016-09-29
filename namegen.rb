@@ -66,12 +66,8 @@ def generate_names(total_male, total_female, options = {})
    [total_male,   "male_first_names.txt",   "M"]].each do |total, file, gender|
     if total > 0
       generate(total, file, last_names, gender).each do |x|
-        if options[:ssn]
-          x << make_fake_ssn
-        end
-        if options[:salary]
-          x << rand(options[:salary])
-        end
+        x << make_fake_ssn if options[:ssn]
+        x << rand(options[:salary]) if options[:salary]
         buf << x
       end
     end
@@ -80,6 +76,13 @@ def generate_names(total_male, total_female, options = {})
   case format
   when :csv
     CSV.generate(:col_sep => separator) do |csv|
+      if options[:header]
+        header = ['first_name', 'middle_name', 'last_name', 'gender',
+                  'birth_date']
+        header << 'ssn' if options[:ssn]
+        header << 'salary' if options[:salary]
+        csv << header
+      end
       buf.each {|s| csv << s}
     end
 
@@ -149,6 +152,10 @@ optparse = OptionParser.new do |opts|
 
   opts.on("--ssn", "Generate social security numbers") do
     options[:ssn] = true
+  end
+
+  opts.on("--header", "Generate header record if output is CSV.") do
+    options[:header] = true
   end
 
   opts.on("--salary RANGE", "Generate salaries") do |range|
