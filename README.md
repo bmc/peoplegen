@@ -17,13 +17,13 @@ you need to get the source and build it.
 
 You can get the source one of two ways:
 
-1. Clone this repo:
+**Way 1**. Clone this repo:
 
 ```
 git clone https://github.com/bmc/peoplegen.git
 ```
 
-2. Download the tarball and unpack it:
+**Way 2**. Download the tarball and unpack it:
 
 ```
 wget -O peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
