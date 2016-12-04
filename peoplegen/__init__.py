@@ -244,7 +244,6 @@ def _parse_args():
 
 def main():
     opts = _parse_args()
-    print(opts)
     last_names, female_first_names, male_first_names = _load_data()
     people = []
     salaries = None
@@ -257,8 +256,6 @@ def main():
     total_males   = int(total * opts['--male'] / 100)
     delta = abs(total - total_females - total_males)
     total_females += delta
-    print(total_males)
-    print(total_females)
 
     # Generate the invariant fields.
     for first_names, n, gender in ((female_first_names, total_females, 'F'),
