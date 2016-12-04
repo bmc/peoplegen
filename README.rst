@@ -29,7 +29,7 @@ You can get the source one of two ways:
 
 ::
 
-    wget -O peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
+    curl -Lo peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
     tar xf peoplegen.tar.gz
 
 Then, ``cd`` into the resulting directory and type:

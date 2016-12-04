@@ -26,7 +26,7 @@ git clone https://github.com/bmc/peoplegen.git
 **Way 2**. Download the tarball and unpack it:
 
 ```
-wget -O peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
+curl -Lo peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
 tar xf peoplegen.tar.gz
 ```
 
