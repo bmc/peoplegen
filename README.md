@@ -26,8 +26,7 @@ git clone https://github.com/bmc/peoplegen.git
 **Way 2**. Download the tarball and unpack it:
 
 ```
-curl -Lo peoplegen.tar.gz https://github.com/bmc/peoplegen/tarball/master
-tar xf peoplegen.tar.gz
+curl -L https://github.com/bmc/peoplegen/tarball/master | tar xf -
 ```
 
 Then, `cd` into the resulting directory and type:
