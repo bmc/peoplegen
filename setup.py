@@ -9,7 +9,6 @@ sys.path += [os.getcwd()]
 
 from setuptools import setup, find_packages
 import re
-import imp
 
 # Pull version from __init__.py
 
@@ -35,9 +34,19 @@ DOWNLOAD_URL = 'https://github.com/bmc/peoplegen/archive/release-{0}'.format(ver
 
 print("{0}, version {1}".format(NAME, version))
 
+gen_README = False
+if not os.path.exists('README.rst'):
+  gen_README = True
+else:
+  md_time = os.path.getmtime('README.md')
+  rst_time = os.path.getmtime('README.rst')
+  if rst_time < md_time:
+    gen_README = True
+
+print("Making README.rst. This will fail if you don't have pandoc installed.")
 rc = os.system('pandoc -o README.rst README.md')
 if rc != 0:
-    sys.exit(1)
+    print("*** WARNING: Unable to generate README.rst.")
 
 setup(name                 = NAME,
       download_url         = DOWNLOAD_URL,
