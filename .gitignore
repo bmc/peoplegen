@@ -1,5 +1,6 @@
-/dist
-/build
 /.idea
-/*.egg-info
 *.iml
+/target
+/project/target
+/project/project
+/src/main/resources/build.properties
