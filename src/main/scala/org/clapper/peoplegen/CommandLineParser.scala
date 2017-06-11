@@ -46,8 +46,8 @@ import HeaderFormat.HeaderFormat
   */
 private[peoplegen] case class Params(
   fileFormat:      FileFormat = FileFormat.CSV,
-  femalePercent:   Int = 50,
-  malePercent:     Int = 50,
+  femalePercent:   Int = -1,
+  malePercent:     Int = -1,
   generateSSNs:    Boolean = false,
   generateHeader:  Boolean = false,
   headerFormat:    HeaderFormat = HeaderFormat.CamelCase,
@@ -139,10 +139,10 @@ private[peoplegen] trait CommandLineParser {
       opt[Unit]("salary")
         .optional
         .text("Generate salary data. Salaries are generated as a normal " +
-              s"distribution with a default mean of ${SalaryInfo.DefaultMean}" +
-              "and a default sigma (standard deviation) of " +
-              s"${SalaryInfo.DefaultSigma}. To adjust these values, use " +
-              s"--salary-mean and --salary-sigma")
+              s"distribution centered around a default mean of " +
+              s"${SalaryInfo.DefaultMean}, with a default sigma (standard " +
+              s"deviation) of ${SalaryInfo.DefaultSigma}. To adjust these " +
+              "values, use --salary-mean and --salary-sigma")
         .action { (_, params) =>
           if (params.salaryInfo.nonEmpty)
             params
@@ -233,6 +233,7 @@ private[peoplegen] trait CommandLineParser {
         .action { case (path, params) => params.copy(outputFile = Some(path)) }
 
       checkConfig { params =>
+
         if ((params.femalePercent + params.malePercent) > 100)
           failure("Female and male percentages add up to more than 100.")
         else
