@@ -1,16 +1,45 @@
 package org.clapper.peoplegen
 
 import java.io.{FileWriter, OutputStreamWriter, Writer}
+import java.nio.file.Path
 import java.text.SimpleDateFormat
 
 import scala.util.Try
 
-/** Writes a stream of people in the appropriate format.
-  *
-  * @param params  the parsed command line parameters
-  * @param msg     the message handler to use to emit messages
+/** The `PeopleWriter` class must be passed an instance of this class,
+  * which controls how the output is opened. This strategy makes it easier
+  * to test the writer.
   */
-class PeopleWriter(params: Params, msg: MessageHandler) {
+trait OutputHandler {
+
+  /** Opens the output file.
+    *
+    * @param outputFile The output file to open. If `None`, standard output
+    *                   should be used. Testers can override this behavior.
+    * @param code       The code to run with the open output stream.
+    *
+    * @tparam T         The type returned within the `Try` from the code block.
+    *
+    * @return whatever the code block returns.
+    *
+    */
+  def withOutputFile[T](outputFile: Option[Path])(code: Writer => Try[T]): Try[T]
+}
+
+/** Writes a stream of people in the appropriate format. Must be coupled
+  * with an OutputHandler. For production use, use the `MainPropleWriter`.
+  */
+trait PeopleWriter {
+
+  self: OutputHandler =>
+
+  /** the parsed command line parameters
+    */
+  val params: Params
+
+  /** the message handler to use to emit messages
+    */
+  val msg: MessageHandler
 
   private val BirthDateFormat        = new SimpleDateFormat("yyyy-MM-dd")
   private val VerbosePersonThreshold = 1000
@@ -62,28 +91,12 @@ class PeopleWriter(params: Params, msg: MessageHandler) {
   )
 
   def write(people: Stream[Person]): Try[Unit] = {
-    def dispatch(w: Writer): Try[Unit] = {
+    msg.verbose(s"Writing ${params.totalPeople} people records.")
+
+    withOutputFile(params.outputFile) { w =>
       params.fileFormat match {
         case FileFormat.CSV  => writeCSV(people, w)
         case FileFormat.JSON => writeJSON(people, w)
-      }
-    }
-
-    msg.verbose(s"Writing ${params.totalPeople} people records.")
-
-    params.outputFile.map { path =>
-      import grizzled.util.withResource
-      import grizzled.util.CanReleaseResource.Implicits.CanReleaseCloseable
-
-      withResource(new FileWriter(path.toFile)) { w =>
-        dispatch(w)
-      }
-    }
-    .getOrElse {
-      for { f <- Try { new OutputStreamWriter(System.out) }
-            _ <- dispatch(f) }
-      yield Try {
-        f.flush()
       }
     }
   }
@@ -205,3 +218,39 @@ class PeopleWriter(params: Params, msg: MessageHandler) {
   }
 }
 
+/** The "production" output handler.
+  *
+  * @param params the parsed command line parameters
+  * @param msg    the message handler to use to emit messages
+  */
+class MainPeopleWriter(val params: Params, val msg: MessageHandler)
+  extends PeopleWriter with OutputHandler {
+
+  /** Handles writing the output to the actual destinations.
+    *
+    * @param outputFile The output file to open. If `None`, standard output
+    *                   should be used. Testers can override this behavior.
+    * @param code       The code to run with the open output stream.
+    *
+    * @tparam T         The type returned within the `Try` from the code block.
+    *
+    * @return whatever the code block returns.
+    */
+  def withOutputFile[T](outputFile: Option[Path])
+                       (code: Writer => Try[T]): Try[T] = {
+    outputFile.map { path =>
+      import grizzled.util.withResource
+      import grizzled.util.CanReleaseResource.Implicits.CanReleaseCloseable
+
+      withResource(new FileWriter(path.toFile)) { w =>
+        code(w)
+      }
+    }
+    .getOrElse {
+      for { f   <- Try { new OutputStreamWriter(System.out) }
+            res <- code(f)
+            _   <- Try { f.flush() } }
+        yield res
+    }
+  }
+}

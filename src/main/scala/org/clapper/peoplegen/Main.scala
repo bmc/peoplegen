@@ -20,7 +20,7 @@ object Main {
                   msg       =  getMessageHandler(params)
                   generator  = new PeopleGenerator(params, msg)
                   people    <- generator.generatePeople
-                  writer     = new PeopleWriter(params, msg)
+                  writer     = new MainPeopleWriter(params, msg)
                   _         <- writer.write(people) }
       yield ()
 
