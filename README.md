@@ -50,6 +50,8 @@ Usage: peoplegen [options] <total> [<outputfile>]
 * `<outputfile>` is the file to which to write the records; if not supplied,
   the output goes to standard output.
 
+## Options
+
 `peoplegen` currently supports the following options:
 
 * `--help`: Generate the usage message and exit.
