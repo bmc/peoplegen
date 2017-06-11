@@ -39,8 +39,18 @@ out of my way to support it there. Caveat (Windows) user.
 
 # Usage
 
-At any time, you can run `peoplegen --help` for a usage summary. It
-currently supports the following options:
+At any time, you can run `peoplegen --help` for a usage summary. The command
+line looks like:
+
+```
+Usage: peoplegen [options] <total> [<outputfile>]
+```
+
+* `<total>` is the total number of people records to generate.
+* `<outputfile>` is the file to which to write the records; if not supplied,
+  the output goes to standard output.
+
+`peoplegen` currently supports the following options:
 
 * `--help`: Generate the usage message and exit.
 
@@ -65,55 +75,46 @@ will abort.
   change these values, use --salary-mean and
                                  --salary-sigma.
 
-peoplegen, 1.0.0 (built 2017/06/11 00:19:14)
+* `--salary-mean <value>`: You can use this option to change the mean salary
+  for the salary distribution. **Note**: Changing this value can result
+  in negative salaries, so check your final data.
 
-Usage: peoplegen [options] <total> [<outputfile>]
+* `--salary-sigma <value>`: You can use this option to change the salary
+  generation sigma—the spread, if you prefer. A smaller number means more
+  salaries will cluster around the mean. A larger number means the distribution
+  will be more "spread out". The distribution will still be a normal one (a
+  bell curve), but the mean and the sigma control the _shape_ of the curve.
 
-  --help
-        This usage message.
-  -f <percent> | --female <percent>
-        Percentage of female names. Defaults to 50.
-  -m <percent> | --male <percent>
-        Percentage of male names. Defaults to 50.
-  --ssn
-        Whether or not to generate (fake) SSNs.
-  --salaries
-        Generate salary data. Salaries are generated as a normal distribution
-        around a mean of 72641 (the U.S. mean salary in 2014), with a sigma
-        (spread) of 20000. To changes these values, use --salary-mean and
-        --salary-sigma.
-  --salary-mean <value>
-        Change the salary generation mean. Note: Changing this value can
-        result in negative salaries, so check your final data.
-  --salary-sigma <value>
-        Change the salary generation sigma (i.e., standard deviation). Note:
-        Changing this value can result in negative salaries, so check your
-        final data.
-  --delim <c>
-        Delimiter to use in CSV mode. Use "\t" for tab.
-  --header
-        Generate a header for CSV output. Default: no header
-  -F <format> | --format <format>
-        File format to generate. Allowable values: csv, json
-  --camel
-        Use camelCase for column names.
-  --english
-        Use English (space-separated) names for column names.
-  -j <format> | --json-format <format>
-        If generating JSON, specify how the JSON is generated. Ignored if
-        --pretty is specified. Legal values:
-        "array": write one JSON array of records.
-        "rows": write one JSON object per line.
-        Default: rows
-  --pretty
-        Pretty-print JSON, instead of printing it all on one line. honored if
-        --format is "json".
-  --snake
-        Use snake_case for column names.
-  -v | --verbose
-        Emit (some) verbose messages
-  <total>
-        Total number of names to generate
-  <outputfile>
-        Output path.
+* `--year-min <value>`: Specify the starting year for birth dates. Defaults to 
+  65 years ago from this year.
+  
+* `--year-max <value>`: Specify the ending year for birth dates. Defaults to 
+  18 years ago from this year. This year cannot _precede_ the `year-min` value.
 
+* `--delim <c>`: (CSV only) The delimiter to use between columns. The default
+  is a comma (","). Any single character is fine. For tab, use the 2-character
+  sequence "\t".
+
+* `--header`: (CSV only) Generate a header for CSV output. Default: no header
+
+* `-F <format>` or `--format <format>`: The file format to generate. Allowable
+  values: "csv" or "json"
+
+* `--camel`: Use camelCase for CSV column names or JSON field names. For
+  example: `firstName`, `lastName`
+
+* `--english`: Use English (space-separated) names for column names. For
+  example: `first name`, `last name`
+  
+* `--snake`: Use "snake case" (underscores) names for column names. For
+  example: `first_name`, `last_name`
+
+* `-j <format>` or `--json-format <format>`: (JSON only) Specify how the
+  JSON should be generated. Legal values:
+    * "rows" (default): generate individual rows of 1-line JSON people records.
+      This format is useful with [Apache Spark](https://spark.apache.org).
+    * "array": generate a JSON array with the JSON people records, all on
+      one line        
+    * "pretty": generate pretty-printed JSON.
+
+* `-v` or `--verbose`: Emit (some) verbose processing messages.
