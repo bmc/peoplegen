@@ -2,34 +2,80 @@ package org.clapper.peoplegen
 
 import java.io.IOException
 
+import breeze.stats.distributions.Gaussian
 import grizzled.random.RandomUtil
 import java.util.{Calendar, Date, TimeZone}
 
 import scala.io.Source
 import scala.util.{Failure, Try}
 
-/**
+/** Generates the people. The generator generates all fields; it's up to the
+  * output routines to decide what fields to write.
+  *
+  * @param params  the parsed command line parameters
+  * @param msg     the message handler to use to emit messages
   */
-class PeopleGenerator(params: Params) {
+class PeopleGenerator(params: Params, msg: MessageHandler) {
 
-  private val classLoader = this.getClass.getClassLoader
-  private val SSNPrefixes = (900 to 999).toArray :+ 666
-  private val today       = new Date
-  private val todayCal    = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+  private val classLoader  = this.getClass.getClassLoader
+  private val SSNPrefixes  = (900 to 999).toArray :+ 666
+  private val today        = new Date
+  private val todayCal     = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
   private val minBirthDate = makeDate(params.minimumYear, 0, 1)
   private val maxBirthDate = makeDate(params.maximumYear, 12, 31)
   private val minEpoch     = minBirthDate.getTime
   private val maxEpoch     = maxBirthDate.getTime
 
-  def generatePeople: Try[Seq[Person]] = {
+  // To generate the salaries we use a Gaussian generator, which generates
+  // a normal (bell-curve) distribution around the mean.
+  private val salaryGen    =  Gaussian(mu    = params.salaryInfo.mean,
+                                       sigma = params.salaryInfo.sigma)
+
+  /** Generate `params.totalPeople` people records.
+    *
+    * @return a `Success` containing a lazy stream of the people, or a
+    *         `Failure` on error
+    */
+  def generatePeople: Try[Stream[Person]] = {
+
     for {lastNames        <- loadNames("last_names.txt")
          maleFirstNames   <- loadNames("male_first_names.txt")
          femaleFirstNames <- loadNames("female_first_names.txt")
-         people           <- generatePeople(maleFirstNames,
-                                            femaleFirstNames,
-                                            lastNames) }
+         people           <- makePeopleStream(lastNames,
+                                              femaleFirstNames,
+                                              maleFirstNames) }
     yield people
   }
+
+  private def makePeopleStream(lastNames:        Array[String],
+                               femaleFirstNames: Array[String],
+                               maleFirstNames:   Array[String]):
+    Try[Stream[Person]] = {
+
+    def gen(malesLeft: Int, femalesLeft: Int): Stream[Person] = {
+      if (femalesLeft > 0) {
+        makePerson(Gender.Female, femaleFirstNames, lastNames) #::
+          gen(malesLeft, femalesLeft - 1)
+      }
+      else if (malesLeft > 0) {
+        makePerson(Gender.Female, femaleFirstNames, lastNames) #::
+          gen(malesLeft - 1, femalesLeft)
+      }
+      else
+        Stream.Empty
+    }
+
+    val totalMales = (params.totalPeople * params.malePercent) / 100
+    val w = (params.totalPeople * params.femalePercent) / 100
+    val totalFemales = w + math.abs(params.totalPeople - totalMales - w)
+
+    msg.verbose(s"Generating ${params.totalPeople} people" +
+                s"($totalFemales females, $totalMales males)")
+    Try {
+      gen(totalMales, totalFemales)
+    }
+  }
+
 
   private def makeDate(year: Int, month: Int, day: Int): Date = {
     val c = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
@@ -43,6 +89,7 @@ class PeopleGenerator(params: Params) {
   }
 
   private def loadNames(resourceName: String): Try[Array[String]] = {
+    msg.verbose(s"""Loading resource "$resourceName".""")
     val is = Option(classLoader.getResourceAsStream(resourceName))
     is.map { stream =>
       Try {
@@ -54,66 +101,23 @@ class PeopleGenerator(params: Params) {
     }
   }
 
-  private def generatePeople(maleFirstNames:   Array[String],
-                             femaleFirstNames: Array[String],
-                             lastNames:        Array[String]): Try[Seq[Person]] = {
-    Try {
-
-      val totalMen = (params.totalPeople * params.malePercent) / 100
-      val w = (params.totalPeople * params.femalePercent) / 100
-      val totalWomen = w + math.abs(params.totalPeople - totalMen - w)
-
-      val womenNoSalaries = (1 to totalWomen).map { _ =>
-        generatePersonNoSalary("F", femaleFirstNames, lastNames)
-      }
-      val menNoSalaries = (1 to totalMen).map { _ =>
-        generatePersonNoSalary("M", maleFirstNames, lastNames)
-      }
-      val peopleNoSalaries = womenNoSalaries ++ menNoSalaries
-
-      // Add the salaries
-      val peopleWithSalaries = params.salaryInfo.map { si =>
-        val salaries = generateSalaries(params.totalPeople, si)
-        peopleNoSalaries.zip(salaries).map { case (person, salary) =>
-            person.copy(salary = Some(salary))
-        }
-      }
-      .getOrElse(peopleNoSalaries)
-
-      peopleWithSalaries
-    }
-  }
-
-  private def generatePersonNoSalary(gender:     String,
-                                     firstNames: Array[String],
-                                     lastNames:  Array[String]): Person = {
-    val ssn = if (params.generateSSNs)
-      Some(makeFakeSSN())
-    else
-      None
-
+  private def makePerson(gender:     Gender.Value,
+                         firstNames: Array[String],
+                         lastNames:  Array[String]): Person = {
     Person(
       firstName = RandomUtil.randomChoice(firstNames),
       middleName = RandomUtil.randomChoice(firstNames),
       lastName   = RandomUtil.randomChoice(lastNames),
       gender     = gender,
       birthDate  = generateBirthDate,
-      ssn        = ssn,
-      salary     = None
+      ssn        = makeFakeSSN(),
+      salary     = salaryGen.draw.toInt
     )
   }
 
   private def generateBirthDate: Date = {
     val epoch = RandomUtil.randomLongBetween(minEpoch, maxEpoch)
     new Date(epoch)
-  }
-
-  private def generateSalaries(total: Int, info: SalaryInfo): Seq[Int] = {
-    // Attempt a gaussian (normal) distribution.
-    import breeze.stats.distributions.Gaussian
-    val g = Gaussian(mu = info.mean, sigma = info.sigma)
-
-    g.sample(total).map(_.toInt)
   }
 
   private def makeFakeSSN(): String = {

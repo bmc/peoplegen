@@ -5,11 +5,15 @@ import java.text.SimpleDateFormat
 
 import scala.util.Try
 
-/**
+/** Writes a stream of people in the appropriate format.
+  *
+  * @param params  the parsed command line parameters
+  * @param msg     the message handler to use to emit messages
   */
-class PeopleWriter(params: Params) {
+class PeopleWriter(params: Params, msg: MessageHandler) {
 
-  private val BirthDateFormat = new SimpleDateFormat("yyyy-MM-dd")
+  private val BirthDateFormat        = new SimpleDateFormat("yyyy-MM-dd")
+  private val VerbosePersonThreshold = 1000
 
   private object Headers extends Enumeration {
     type Headers = Value
@@ -57,14 +61,16 @@ class PeopleWriter(params: Params) {
     )
   )
 
-  def write(people: Seq[Person]): Try[Unit] = {
+  def write(people: Stream[Person]): Try[Unit] = {
     def dispatch(w: Writer): Try[Unit] = {
       params.fileFormat match {
         case FileFormat.CSV  => writeCSV(people, w)
         case FileFormat.JSON => writeJSON(people, w)
       }
-
     }
+
+    msg.verbose(s"Writing ${params.totalPeople} people records.")
+
     params.outputFile.map { path =>
       import grizzled.util.withResource
       import grizzled.util.CanReleaseResource.Implicits.CanReleaseCloseable
@@ -82,34 +88,33 @@ class PeopleWriter(params: Params) {
     }
   }
 
-  private def writeCSV(people: Seq[Person], out: Writer): Try[Unit] = {
+  private def atVerboseThreshold(index: Int): Boolean = {
+    ((index + 1) % VerbosePersonThreshold) == 0
+  }
+
+  private def writeCSV(people: Stream[Person], out: Writer): Try[Unit] = {
     import com.github.tototoshi.csv.{CSVWriter, DefaultCSVFormat}
 
     def getHeaders: List[String] = {
-      Headers.inOrder.flatMap { h =>
-        h match {
-          case Headers.SSN => if (params.generateSSNs) Some(h) else None
-          case Headers.Salary => params.salaryInfo.map(_ => h)
-          case _ => Some(h)
-        }
-      }
-      .map { h =>
-        HeaderNames(params.headerFormat)(h)
-      }
-      .toList
+      Headers.inOrder.map { h => HeaderNames(params.headerFormat)(h) }.toList
     }
 
     def personToCSVFields(p: Person): List[String] = {
-      Headers.inOrder.flatMap { h =>
-        h match {
-          case Headers.SSN        => p.ssn
-          case Headers.Salary     => p.salary.map(_.toString)
-          case Headers.BirthDate  => Some(BirthDateFormat.format(p.birthDate))
-          case Headers.FirstName  => Some(p.firstName)
-          case Headers.MiddleName => Some(p.middleName)
-          case Headers.LastName   => Some(p.lastName)
-          case Headers.Gender     => Some(p.gender)
-        }
+      Headers.inOrder.flatMap {
+        case Headers.SSN =>
+          if (params.generateSSNs) Some(p.ssn) else None
+        case Headers.Salary =>
+          if (params.generateSalaries) Some(p.salary.toString) else None
+        case Headers.BirthDate =>
+          Some(BirthDateFormat.format(p.birthDate))
+        case Headers.FirstName =>
+          Some(p.firstName)
+        case Headers.MiddleName =>
+          Some(p.middleName)
+        case Headers.LastName =>
+          Some(p.lastName.toString)
+        case Headers.Gender =>
+          Some(p.gender.toString)
       }
       .toList
     }
@@ -123,41 +128,41 @@ class PeopleWriter(params: Params) {
       if (params.generateHeader)
         w.writeRow(getHeaders)
 
-      for (p <- people) {
+      for ((p, i) <- people.zipWithIndex) {
+        if (atVerboseThreshold(i)) msg.verbose(s"... ${i + 1}")
         w.writeRow(personToCSVFields(p))
       }
     }
   }
 
-
-  private def writeJSON(people: Seq[Person], out: Writer): Try[Unit] = {
+  private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
     import spray.json._
 
     object PersonProtocol extends DefaultJsonProtocol {
       implicit object PersonJsonFormat extends RootJsonFormat[Person] {
         def write(p: Person): JsValue = {
           val names = HeaderNames(params.headerFormat)
-          val fields = Headers.inOrder.flatMap { h =>
-            h match {
-              case Headers.SSN =>
-                p.ssn.map { num =>
-                  names(h) -> JsString(num)
-                }
-              case Headers.Salary =>
-                p.salary.map { num =>
-                  names(h) -> JsNumber(num)
-                }
-              case Headers.Gender =>
-                Some(names(h) -> JsString(p.gender))
-              case Headers.FirstName =>
-                Some(names(h) -> JsString(p.firstName))
-              case Headers.MiddleName =>
-                Some(names(h) -> JsString(p.middleName))
-              case Headers.LastName =>
-                Some(names(h) -> JsString(p.lastName))
-              case Headers.BirthDate =>
-                Some(names(h) -> JsString(BirthDateFormat.format(p.birthDate)))
-            }
+          val fields = Headers.inOrder.flatMap {
+            case h @ Headers.SSN =>
+              if (params.generateSSNs)
+                Some(names(h) -> JsString(p.ssn))
+              else
+                None
+            case h @ Headers.Salary =>
+              if (params.generateSalaries)
+                Some(names(h) -> JsNumber(p.salary))
+              else
+                None
+            case h @ Headers.Gender =>
+              Some(names(h) -> JsString(p.gender.toString))
+            case h @ Headers.FirstName =>
+              Some(names(h) -> JsString(p.firstName))
+            case h @ Headers.MiddleName =>
+              Some(names(h) -> JsString(p.middleName))
+            case h @ Headers.LastName =>
+              Some(names(h) -> JsString(p.lastName))
+            case h @ Headers.BirthDate =>
+              Some(names(h) -> JsString(BirthDateFormat.format(p.birthDate)))
           }
 
           JsObject(fields: _*)
@@ -171,8 +176,17 @@ class PeopleWriter(params: Params) {
 
     Try {
       import PersonProtocol._
+      msg.verbose(s"Converting ${params.totalPeople} people records to JSON.")
+      val json = people.toSeq.toJson
 
-      out.write(people.toJson.compactPrint + "\n")
+      val jsonString = if (params.prettyJSON)
+        json.prettyPrint
+      else
+        json.compactPrint
+
+      msg.verbose(s"Writing JSON.")
+      out.write(s"$jsonString\n")
     }
   }
 }
+

@@ -10,12 +10,18 @@ object Main {
 
   def main(args: Array[String]): Unit = {
 
+    def getMessageHandler(params: Params) = if (params.verbose)
+      VerboseMessageHandler
+    else
+      EmptyMessageHandler
+
     val parser = new CommandLineParser {}
     val t = for { bi        <- BuildInfo.load()
                   params    <- parser.parseParams(args, bi)
-                  generator  = new PeopleGenerator(params)
+                  msg       =  getMessageHandler(params)
+                  generator  = new PeopleGenerator(params, msg)
                   people    <- generator.generatePeople
-                  writer     = new PeopleWriter(params)
+                  writer     = new PeopleWriter(params, msg)
                   _         <- writer.write(people) }
       yield ()
 
@@ -32,4 +38,5 @@ object Main {
 
     System.exit(rc)
   }
+
 }

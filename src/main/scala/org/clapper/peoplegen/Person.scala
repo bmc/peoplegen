@@ -7,8 +7,8 @@ import java.util.Date
 case class Person(firstName:  String,
                   middleName: String,
                   lastName:   String,
-                  gender:     String,
+                  gender:     Gender.Value,
                   birthDate:  Date,
-                  salary:     Option[Int],
-                  ssn:        Option[String])
+                  salary:     Int,
+                  ssn:        String)
 

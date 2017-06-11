@@ -38,25 +38,32 @@ import HeaderFormat.HeaderFormat
   * @param generateHeader   Whether or not to generate a header (CSV only)
   * @param headerFormat     The format of the file header (CSV only)
   * @param salaryInfo       Salary generation data
+  * @param generateSalaries Whether or not to generate salary info
   * @param yearMin          Minimum birth year
   * @param yearMax          Maximum birth year
   * @param columnSep        Separator to use in CSV mode
+  * @param prettyJSON       Pretty-print JSON, instead of printing it in
+  *                         one compact line.
+  * @param verbose          Whether or not to generate verbose messages
   * @param totalPeople      Total people records to generate
   * @param outputFile       Where to write the output (or stdout if None)
   */
 private[peoplegen] case class Params(
-  fileFormat:      FileFormat = FileFormat.CSV,
-  femalePercent:   Int = -1,
-  malePercent:     Int = -1,
-  generateSSNs:    Boolean = false,
-  generateHeader:  Boolean = false,
-  headerFormat:    HeaderFormat = HeaderFormat.CamelCase,
-  salaryInfo:      Option[SalaryInfo] = None,
-  yearMin:         Option[Int] = None,
-  yearMax:         Option[Int] = None,
-  columnSep:       Char = ',',
-  totalPeople:     Int = 0,
-  outputFile:      Option[Path] = None
+  fileFormat:       FileFormat = FileFormat.CSV,
+  femalePercent:    Int = 50,
+  malePercent:      Int = 50,
+  generateSSNs:     Boolean = false,
+  generateHeader:   Boolean = false,
+  headerFormat:     HeaderFormat = HeaderFormat.CamelCase,
+  salaryInfo:       SalaryInfo = SalaryInfo(),
+  generateSalaries: Boolean = false,
+  yearMin:          Option[Int] = None,
+  yearMax:          Option[Int] = None,
+  columnSep:        Char = ',',
+  prettyJSON:       Boolean = false,
+  verbose:          Boolean = false,
+  totalPeople:      Int = 0,
+  outputFile:       Option[Path] = None
 ) {
 
   private val thisYear = {
@@ -119,6 +126,8 @@ private[peoplegen] trait CommandLineParser {
 
       head(s"\n${buildInfo.toString}\n")
 
+      help("help").text("This usage message.")
+
       opt[Int]('f', "female")
         .optional
         .valueName("<percent>")
@@ -136,51 +145,36 @@ private[peoplegen] trait CommandLineParser {
         .text("Whether or not to generate (fake) SSNs.")
         .action { (_, params) => params.copy(generateSSNs = true) }
 
-      opt[Unit]("salary")
+      opt[Unit]("salaries")
         .optional
         .text("Generate salary data. Salaries are generated as a normal " +
-              s"distribution centered around a default mean of " +
-              s"${SalaryInfo.DefaultMean}, with a default sigma (standard " +
-              s"deviation) of ${SalaryInfo.DefaultSigma}. To adjust these " +
-              "values, use --salary-mean and --salary-sigma")
-        .action { (_, params) =>
-          if (params.salaryInfo.nonEmpty)
-            params
-          else
-            params.copy(salaryInfo = Some(SalaryInfo()))
-        }
+              s"distribution around a mean of ${SalaryInfo.DefaultMean} " +
+              "(the U.S. mean salary in 2014), with a sigma (spread) of " +
+              s"${SalaryInfo.DefaultSigma}. To changes these values, use " +
+              "--salary-mean and --salary-sigma.")
+        .action { (_, params) => params.copy(generateSalaries = true) }
 
       opt[Int]("salary-mean")
         .optional
-        .text("Change the salary generation mean. Note that changing this " +
-              "parameter can result in negative salaries, so check your" +
-              "final data.")
+        .text("Change the salary generation mean. Note: Changing this value " +
+              "can result in negative salaries, so check your final data.")
         .action { case (n, params) =>
-          if (params.salaryInfo.isEmpty)
-            params.copy(salaryInfo = Some(SalaryInfo(mean = n)))
-          else
-            params.copy(salaryInfo = params.salaryInfo.map { si =>
-              si.copy(mean = n)
-            })
+          params.copy(salaryInfo = params.salaryInfo.copy(mean = n))
         }
 
       opt[Int]("salary-sigma")
         .optional
         .text("Change the salary generation sigma (i.e., standard deviation). " +
-              "Note that changing this parameter can result in negative " +
-              "salaries, so check your final data.")
+              "Note: Changing this value can result in negative salaries, " +
+              "so check your final data.")
         .action { case (n, params) =>
-          if (params.salaryInfo.isEmpty)
-            params.copy(salaryInfo = Some(SalaryInfo(sigma = n)))
-          else
-            params.copy(salaryInfo = params.salaryInfo.map { si =>
-              si.copy(sigma = n)
-            })
+          params.copy(salaryInfo = params.salaryInfo.copy(sigma = n))
         }
 
       opt[String]("delim")
         .optional
-        .text("""Delimiter to use in CSV mode. Use \t for tab.""")
+        .valueName("<c>")
+        .text("""Delimiter to use in CSV mode. Use "\t" for tab.""")
         .validate {
           case """\t""" => success
           case s if s.length == 1 => success
@@ -193,12 +187,13 @@ private[peoplegen] trait CommandLineParser {
 
       opt[Unit]("header")
         .optional
-        .text("Whether or not to generate a header for CSV output.")
+        .text("Generate a header for CSV output. Default: no header")
         .action { (_, params) => params.copy(generateHeader = true) }
 
       opt[FileFormat.Value]('F', "format")
+        .valueName("<format>")
         .optional
-        .text("File format to generate. Allowable values: csv, tsv, json")
+        .text("File format to generate. Allowable values: csv, json")
         .action { case (fmt, params)  => params.copy(fileFormat = fmt) }
 
       opt[Unit]("camel")
@@ -215,6 +210,14 @@ private[peoplegen] trait CommandLineParser {
           params.copy(headerFormat = HeaderFormat.English)
         }
 
+      opt[Unit]("pretty")
+        .optional
+        .text("Pretty-print JSON, instead of printing it all on one line. " +
+              """honored if --format is "json".""")
+        .action { case (_, params) =>
+          params.copy(prettyJSON = true)
+        }
+
       opt[Unit]("snake")
         .optional
         .text("Use snake_case for column names.")
@@ -222,12 +225,17 @@ private[peoplegen] trait CommandLineParser {
           params.copy(headerFormat = HeaderFormat.SnakeCase)
         }
 
+      opt[Unit]('v', "verbose")
+        .optional
+        .text("Emit (some) verbose messages")
+        .action { case (_, params) => params.copy(verbose = true) }
+
       arg[Int]("<total>")
         .required
         .text("Total number of names to generate")
         .action  { case (n, params) => params.copy(totalPeople = n) }
 
-      arg[Path]("[<outputfile>]")
+      arg[Path]("<outputfile>")
         .optional
         .text("Output path.")
         .action { case (path, params) => params.copy(outputFile = Some(path)) }
@@ -239,8 +247,6 @@ private[peoplegen] trait CommandLineParser {
         else
           success
       }
-
-      help("help").text("This usage message.")
 
       override def showUsage(): Unit = {
         import grizzled.string.WordWrapper

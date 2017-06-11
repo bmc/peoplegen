@@ -4,6 +4,7 @@ name := """peoplegen"""
 version := "1.0.0"
 
 scalaVersion := "2.11.11"
+scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked")
 
 // InstallDir defines where to install the software. The BAT or shell script
 // will be installed in $InstallDir/bin. The jar will be installed in
