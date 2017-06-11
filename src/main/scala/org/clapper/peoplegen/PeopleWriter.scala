@@ -108,7 +108,6 @@ trait PeopleWriter {
       writeSalaries = params.generateSalaries,
       dateFormat    = BirthDateFormat,
       jsonFormat    = params.jsonFormat,
-      pretty        = params.prettyJSON,
       msg           = this.msg
     )
 

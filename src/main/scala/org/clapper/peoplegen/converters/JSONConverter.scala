@@ -59,7 +59,6 @@ private[peoplegen] class PersonProtocol(headerFormat:  HeaderFormat.Value,
   * @param writeSalaries   whether or not to write salaries
   * @param dateFormat      a date formatter
   * @param jsonFormat      the JSON format to use. Ignored if `pretty` is `true`.
-  * @param pretty          whether to write pretty-printed JSON.
   * @param msg             `MessageHandler` to use
   */
 class JSONConverter(val headerFormat:  HeaderFormat.Value,
@@ -67,7 +66,6 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
                     writeSalaries:     Boolean,
                     dateFormat:        DateFormat,
                     jsonFormat:        JSONFormat.Value,
-                    pretty:            Boolean,
                     msg:               MessageHandler)
   extends Converter {
 
@@ -96,12 +94,11 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
     }
 
     Try {
-      if (pretty)
-        Stream(convertToJSONArray.prettyPrint)
-      else if (jsonFormat == JSONFormat.AsArray)
-        Stream(convertToJSONArray.compactPrint)
-      else
-        people.map(_.toJson.compactPrint)
+      jsonFormat match {
+        case JSONFormat.Pretty       => Stream(convertToJSONArray.prettyPrint)
+        case JSONFormat.CompactArray => Stream(convertToJSONArray.compactPrint)
+        case JSONFormat.CompactRows  => people.map(_.toJson.compactPrint)
+      }
     }
   }
 
@@ -113,7 +110,10 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
     */
   def convertPerson(person: Person): Try[String] = {
     Try {
-      if (pretty) person.toJson.prettyPrint else person.toJson.compactPrint
+      jsonFormat match {
+        case JSONFormat.Pretty => person.toJson.prettyPrint
+        case _                 => person.toJson.compactPrint
+      }
     }
   }
 }

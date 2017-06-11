@@ -32,12 +32,16 @@ private[peoplegen] object JSONFormat extends Enumeration {
 
   /** Generate the people in one big JSON array of object.
     */
-  val AsArray = Value("array")
+  val CompactArray = Value("array")
 
   /** Generate the people as one JSON object per line, not wrapped in an
     * array. (Apache Spark wants this format, for instance.)
     */
-  val AsRows = Value("rows")
+  val CompactRows = Value("rows")
+
+  /** Pretty-print the output.
+    */
+  val Pretty = Value("pretty")
 }
 
 case class SalaryInfo(mean:  Int = SalaryInfo.DefaultMean,
@@ -82,8 +86,7 @@ private[peoplegen] case class Params(
   yearStart:        Option[Int] = None,
   yearEnd:          Option[Int] = None,
   columnSep:        Char = ',',
-  prettyJSON:       Boolean = false,
-  jsonFormat:       JSONFormat.Value = JSONFormat.AsRows,
+  jsonFormat:       JSONFormat.Value = JSONFormat.CompactRows,
   verbose:          Boolean = false,
   totalPeople:      Int = 0,
   outputFile:       Option[Path] = None
@@ -376,20 +379,12 @@ private[peoplegen] trait CommandLineParserBase {
       opt[JSONFormat.Value]('j', "json-format")
         .optional
         .valueName("<format>")
-        .text("If generating JSON, specify how the JSON is generated. " +
-              "Ignored if --pretty is specified. Legal values:\\n" +
-              s""""${JSONFormat.AsArray}": write one JSON array of records.\\n""" +
-              s""""${JSONFormat.AsRows}": write one JSON object per line.\\n""" +
-              s"Default: ${JSONFormat.AsRows}")
+        .text("If generating JSON, specify how the JSON is generated.\\n" +
+              s""""${JSONFormat.CompactArray}": write one JSON array of records.\\n""" +
+              s""""${JSONFormat.CompactRows}": write one JSON object per line.\\n""" +
+              s""""${JSONFormat.Pretty}": pretty-print the JSON.\\n""" +
+              s"Default: ${JSONFormat.CompactRows}")
         .action { case (fmt, params) => params.copy(jsonFormat = fmt) }
-
-      opt[Unit]("pretty")
-        .optional
-        .text("Pretty-print JSON, instead of printing it all on one line. " +
-              """honored if --format is "json".""")
-        .action { case (_, params) =>
-          params.copy(prettyJSON = true)
-        }
 
       opt[Unit]("snake")
         .optional

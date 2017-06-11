@@ -76,7 +76,7 @@ class PeopleWriterSpec extends BaseSpec {
     val params = TestParams.copy(
       totalPeople = 2,
       fileFormat  = FileFormat.JSON,
-      jsonFormat  = JSONFormat.AsRows
+      jsonFormat  = JSONFormat.CompactRows
     )
     val generator = new PeopleGenerator(params, EmptyMessageHandler)
     val t = generator.generatePeople
@@ -89,8 +89,7 @@ class PeopleWriterSpec extends BaseSpec {
 
     val converter = new JSONConverter(
       headerFormat  = TestParams.headerFormat,
-      jsonFormat    = JSONFormat.AsRows,
-      pretty        = false,
+      jsonFormat    = JSONFormat.CompactRows,
       writeSSNs     = TestParams.generateSSNs,
       writeSalaries = TestParams.generateSalaries,
       dateFormat    = TestBirthDateFormat,
