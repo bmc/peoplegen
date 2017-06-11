@@ -21,8 +21,8 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
   private val SSNPrefixes  = (900 to 999).toArray :+ 666
   private val today        = new Date
   private val todayCal     = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-  private val minBirthDate = makeDate(params.minimumYear, 0, 1)
-  private val maxBirthDate = makeDate(params.maximumYear, 12, 31)
+  private val minBirthDate = makeDate(params.startingYear, 0, 1)
+  private val maxBirthDate = makeDate(params.endingYear, 12, 31)
   private val minEpoch     = minBirthDate.getTime
   private val maxEpoch     = maxBirthDate.getTime
 

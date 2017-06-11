@@ -1,5 +1,6 @@
 package org.clapper.peoplegen
 
+import java.io.PrintStream
 import java.nio.file.{Path, Paths}
 
 import scala.util.control.NonFatal
@@ -59,8 +60,8 @@ import HeaderFormat.HeaderFormat
   * @param headerFormat     The format of the file header (CSV only)
   * @param salaryInfo       Salary generation data
   * @param generateSalaries Whether or not to generate salary info
-  * @param yearMin          Minimum birth year
-  * @param yearMax          Maximum birth year
+  * @param yearStart          Minimum birth year
+  * @param yearEnd          Maximum birth year
   * @param columnSep        Separator to use in CSV mode
   * @param prettyJSON       Pretty-print JSON, instead of printing it in
   *                         one compact line.
@@ -78,8 +79,8 @@ private[peoplegen] case class Params(
   headerFormat:     HeaderFormat = HeaderFormat.CamelCase,
   salaryInfo:       SalaryInfo = SalaryInfo(),
   generateSalaries: Boolean = false,
-  yearMin:          Option[Int] = None,
-  yearMax:          Option[Int] = None,
+  yearStart:        Option[Int] = None,
+  yearEnd:          Option[Int] = None,
   columnSep:        Char = ',',
   prettyJSON:       Boolean = false,
   jsonFormat:       JSONFormat.Value = JSONFormat.AsRows,
@@ -88,15 +89,25 @@ private[peoplegen] case class Params(
   outputFile:       Option[Path] = None
 ) {
 
-  private val thisYear = {
+
+  val startingYear = yearStart.getOrElse(
+    Params.ThisYear - Params.StartingYearDefaultDelta
+  )
+  val endingYear = yearEnd.getOrElse(
+    Params.ThisYear - Params.EndingYearDefaultDelta
+  )
+}
+
+object Params {
+  val StartingYearDefaultDelta = 65
+  val EndingYearDefaultDelta   = 18
+
+  private val ThisYear = {
     import java.util.Calendar
 
     val cal = Calendar.getInstance
     cal.get(Calendar.YEAR)
   }
-
-  val minimumYear = yearMin.getOrElse(thisYear - 65)
-  val maximumYear = yearMax.getOrElse(thisYear - 18)
 }
 
 /** Thrown to indicate a problem with the command line.
@@ -112,14 +123,16 @@ private[peoplegen] class CommandLineException(val message: String = "")
 private[peoplegen] class UsageException(message: String = "")
   extends CommandLineException(message)
 
-/**
+/** A trait that implements that command line parser. Use the
+  * `CommandLineParser` for actual production parsing. Implement this
+  * trait yourself for testing.
   */
-private[peoplegen] trait CommandLineParser {
+private[peoplegen] trait CommandLineParserBase {
   import scopt._
 
-  implicit val pathRead: Read[Path] = Read.reads { s => Paths.get(s) }
+  private implicit val pathRead: Read[Path] = Read.reads { s => Paths.get(s) }
 
-  implicit val fileFormatRead: Read[FileFormat.Value] = Read.reads { s =>
+  private implicit val fileFormatRead: Read[FileFormat.Value] = Read.reads { s =>
     Try {
       FileFormat.withName(s)
     }
@@ -130,7 +143,7 @@ private[peoplegen] trait CommandLineParser {
     .get
   }
 
-  implicit val jsonFormatRead: Read[JSONFormat.Value] = Read.reads { s =>
+  private implicit val jsonFormatRead: Read[JSONFormat.Value] = Read.reads { s =>
     Try {
       JSONFormat.withName(s)
     }
@@ -152,53 +165,102 @@ private[peoplegen] trait CommandLineParser {
     */
   def parseParams(args: Array[String], buildInfo: BuildInfo): Try[Params] = {
     val parser = getParser(buildInfo)
-    val t = parser.parse(args, Params())
-      .map { params =>
-        // Have to do the checkConfig-type work here, because scopt's
-        // checkConfig doesn't allow updating the params.
+    Console.withOut(outputStream) {
+      Console.withErr(errorStream) {
+        val t = parser
+          .parse(args, Params())
+          .map(postCheck)
+          .getOrElse(Failure(new CommandLineException()))
 
-        // If no female or male percentage were specified, then both will
-        // be -1, so we can set them to 50:50. Otherwise, if one of them is
-        // -1, set it to 100 minus the other one. If both are set, though,
-        // verify that they add up to 100.
-        (params.femalePercent, params.malePercent) match {
-          case (f, m) if (m < 0) && (f < 0) =>
-            Success(params.copy(femalePercent = 50, malePercent = 50))
+        t match {
+          case t @ Success(_) =>
+            t
+          case Failure(e: UsageException) =>
+            val msg = e.message
+            if (msg.nonEmpty) System.err.println(s"Error: $msg")
+            parser.showUsage()
+            Failure(e)
 
-          case (f, m) if m < 0 =>
-            Success(params.copy(malePercent = 100 - f))
+          case Failure(e: CommandLineException) =>
+            val msg = e.message
+            if (msg.nonEmpty) System.err.println(s"Error: $msg")
+            Failure(e)
 
-          case (f, m) if f < 0 =>
-            Success(params.copy(femalePercent = 100 - m))
-
-          case (f, m) if (m + f) != 100 =>
-            Failure(new UsageException(
-              "Female and male percentages do not add up to 100."
-            ))
-
-          case _ =>
-            Success(params)
+          case f @ Failure(e) =>
+            f
         }
       }
-      .getOrElse(Failure(new CommandLineException()))
-
-    t match {
-      case Success(_) =>
-        t
-      case Failure(e: UsageException) =>
-        val msg = e.message
-        if (msg.nonEmpty) System.err.println(s"Error: $msg")
-        parser.showUsage()
-        Failure(e)
-
-      case Failure(e: CommandLineException) =>
-        val msg = e.message
-        if (msg.nonEmpty) System.err.println(s"Error: $msg")
-        Failure(e)
-
-      case f @ Failure(e) =>
-        f
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // Protected Methods
+  // --------------------------------------------------------------------------
+
+  /** Defines the standard output (i.e., where the parser should send text
+    * written to stdout).
+    *
+    * @return the output stream
+    */
+  protected def outputStream: PrintStream
+
+  /** Defines the standard error (i.e., where the parser should send text
+    * written to stderr).
+    *
+    * @return the error stream
+    */
+  protected def errorStream: PrintStream
+
+  // --------------------------------------------------------------------------
+  // Private Methods
+  // --------------------------------------------------------------------------
+
+  /** Do post-checks on the parsed parameters.
+    *
+    * @param params the parameters, as parsed
+    */
+  private def postCheck(params: Params): Try[Params] = {
+    // Have to do the checkConfig-type work here, because scopt's
+    // checkConfig doesn't allow updating the params.
+
+    def checkPercents(params: Params): Try[Params] = {
+      // If no female or male percentage were specified, then both will
+      // be -1, so we can set them to 50:50. Otherwise, if one of them is
+      // -1, set it to 100 minus the other one. If both are set, though,
+      // verify that they add up to 100.
+      (params.femalePercent, params.malePercent) match {
+        case (f, m) if (m < 0) && (f < 0) =>
+          Success(params.copy(femalePercent = 50, malePercent = 50))
+
+        case (f, m) if m < 0 =>
+          Success(params.copy(malePercent = 100 - f))
+
+        case (f, m) if f < 0 =>
+          Success(params.copy(femalePercent = 100 - m))
+
+        case (f, m) if (m + f) != 100 =>
+          Failure(new UsageException(
+            "Female and male percentages do not add up to 100."
+          ))
+
+        case _ =>
+          Success(params)
+      }
+    }
+
+    def checkYears(params: Params): Try[Params] = {
+      if (params.startingYear > params.endingYear)
+        Failure(new UsageException(
+          s"Maximum year ${params.endingYear} is less than minimum " +
+          s"year ${params.startingYear}"
+        ))
+      else
+        Success(params)
+    }
+
+    for { p1 <- checkPercents(params)
+          p2 <- checkYears(p1) }
+      yield p2
   }
 
   /** Get the scopt parser object.
@@ -259,6 +321,18 @@ private[peoplegen] trait CommandLineParser {
         .action { case (n, params) =>
           params.copy(salaryInfo = params.salaryInfo.copy(sigma = n))
         }
+
+      opt[Int]("year-min")
+        .optional
+        .text("Specify the starting year for birth dates. Defaults to " +
+              s"${Params.StartingYearDefaultDelta} years ago from this year.")
+        .action { case (n, params) => params.copy(yearStart = Some(n)) }
+
+      opt[Int]("year-max")
+        .optional
+        .text("Specify the ending year for birth dates. Defaults to " +
+          s"${Params.EndingYearDefaultDelta} years ago from this year.")
+        .action { case (n, params) => params.copy(yearEnd = Some(n)) }
 
       opt[String]("delim")
         .optional
@@ -368,4 +442,22 @@ private[peoplegen] trait CommandLineParser {
       override def showUsageAsError: Unit = showUsage()
     }
   }
+}
+
+/** The "production" command line parser.
+  */
+object CommandLineParser extends CommandLineParserBase {
+  /** Defines the standard output (i.e., where the parser should send text
+    * written to stdout).
+    *
+    * @return the output stream
+    */
+  protected def outputStream: PrintStream = System.out
+
+  /** Defines the standard error (i.e., where the parser should send text
+    * written to stderr).
+    *
+    * @return the error stream
+    */
+  protected def errorStream: PrintStream = System.err
 }
