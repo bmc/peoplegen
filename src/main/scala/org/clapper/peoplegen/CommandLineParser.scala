@@ -71,8 +71,8 @@ import HeaderFormat.HeaderFormat
   */
 private[peoplegen] case class Params(
   fileFormat:       FileFormat = FileFormat.CSV,
-  femalePercent:    Int = 50,
-  malePercent:      Int = 50,
+  femalePercent:    Int = -1,
+  malePercent:      Int = -1,
   generateSSNs:     Boolean = false,
   generateHeader:   Boolean = false,
   headerFormat:     HeaderFormat = HeaderFormat.CamelCase,
@@ -105,6 +105,12 @@ private[peoplegen] case class Params(
   */
 private[peoplegen] class CommandLineException(val message: String = "")
   extends Exception(message)
+
+/** Thrown to indicate the code *outside* scopt should display the usage
+  * message.
+  */
+private[peoplegen] class UsageException(message: String = "")
+  extends CommandLineException(message)
 
 /**
   */
@@ -145,9 +151,54 @@ private[peoplegen] trait CommandLineParser {
     *         `Failure(exception)`, with an exception you can ignore.
     */
   def parseParams(args: Array[String], buildInfo: BuildInfo): Try[Params] = {
-    getParser(buildInfo).parse(args, Params())
-      .map(Success(_))
+    val parser = getParser(buildInfo)
+    val t = parser.parse(args, Params())
+      .map { params =>
+        // Have to do the checkConfig-type work here, because scopt's
+        // checkConfig doesn't allow updating the params.
+
+        // If no female or male percentage were specified, then both will
+        // be -1, so we can set them to 50:50. Otherwise, if one of them is
+        // -1, set it to 100 minus the other one. If both are set, though,
+        // verify that they add up to 100.
+        (params.femalePercent, params.malePercent) match {
+          case (f, m) if (m < 0) && (f < 0) =>
+            Success(params.copy(femalePercent = 50, malePercent = 50))
+
+          case (f, m) if m < 0 =>
+            Success(params.copy(malePercent = 100 - f))
+
+          case (f, m) if f < 0 =>
+            Success(params.copy(femalePercent = 100 - m))
+
+          case (f, m) if (m + f) != 100 =>
+            Failure(new UsageException(
+              "Female and male percentages do not add up to 100."
+            ))
+
+          case _ =>
+            Success(params)
+        }
+      }
       .getOrElse(Failure(new CommandLineException()))
+
+    t match {
+      case Success(_) =>
+        t
+      case Failure(e: UsageException) =>
+        val msg = e.message
+        if (msg.nonEmpty) System.err.println(s"Error: $msg")
+        parser.showUsage()
+        Failure(e)
+
+      case Failure(e: CommandLineException) =>
+        val msg = e.message
+        if (msg.nonEmpty) System.err.println(s"Error: $msg")
+        Failure(e)
+
+      case f @ Failure(e) =>
+        f
+    }
   }
 
   /** Get the scopt parser object.
@@ -287,14 +338,6 @@ private[peoplegen] trait CommandLineParser {
         .optional
         .text("Output path.")
         .action { case (path, params) => params.copy(outputFile = Some(path)) }
-
-      checkConfig { params =>
-
-        if ((params.femalePercent + params.malePercent) > 100)
-          failure("Female and male percentages add up to more than 100.")
-        else
-          success
-      }
 
       override def showUsage(): Unit = {
         import grizzled.string.WordWrapper

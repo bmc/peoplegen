@@ -29,7 +29,7 @@ object Main {
       case Success(params) =>
         0
       case Failure(e: CommandLineException) =>
-        println(e.message)
+        // Error already printed.
         1
       case Failure(e) =>
         e.printStackTrace(System.err)
