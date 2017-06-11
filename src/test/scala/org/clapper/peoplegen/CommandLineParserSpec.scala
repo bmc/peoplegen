@@ -7,8 +7,8 @@ class CommandLineParserSpec extends BaseSpec {
     val stdoutBuffer = new MessageBuffer
     val stderrBuffer = new MessageBuffer
 
-    val errorStream  = stderrBuffer.asPrintStream
-    val outputStream = stdoutBuffer.asPrintStream
+    protected val errorStream  = stderrBuffer.asPrintStream
+    protected val outputStream = stdoutBuffer.asPrintStream
   }
 
   val TestBuildInfo = new BuildInfo(name           = "peoplegen",

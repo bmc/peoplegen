@@ -2,7 +2,7 @@ package org.clapper.peoplegen
 
 import java.io.{FileWriter, OutputStreamWriter, Writer}
 import java.nio.file.Path
-import java.text.SimpleDateFormat
+import java.text.{DateFormat, SimpleDateFormat}
 
 import org.clapper.peoplegen.converters.{CSVConverter, JSONConverter}
 
@@ -43,8 +43,9 @@ trait PeopleWriter {
     */
   val msg: MessageHandler
 
-  private val BirthDateFormat        = new SimpleDateFormat("yyyy-MM-dd")
-  private val VerbosePersonThreshold = 1000
+  /** the format in which to write the birth date
+    */
+  val BirthDateFormat: DateFormat
 
   // --------------------------------------------------------------------------
   // Public Methods
@@ -73,19 +74,6 @@ trait PeopleWriter {
   // --------------------------------------------------------------------------
 
   private def writeCSV(people: Stream[Person], out: Writer): Try[Unit] = {
-    import Fields._
-
-    def getHeaders: List[String] = {
-      FieldSet.inOrder.map { h => FieldNames(params.headerFormat)(h) }.toList
-    }
-
-    def write(stream: Stream[String]): Try[Unit] = {
-      Try {
-        msg.verbose(s"Writing CSV object(s) to output.")
-        stream.foreach(s => out.write(s"$s\n"))
-      }
-    }
-
     val converter = new CSVConverter(
       headerFormat  = params.headerFormat,
       delimiter     = params.columnSep,
@@ -97,19 +85,23 @@ trait PeopleWriter {
     )
 
     for { csv <- converter.convertPeople(people)
-          _   <- write(csv) }
+          _   <- write(csv, out)
+          _   <- Try { out.flush() } }
     yield ()
   }
 
-  private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
+  // --------------------------------------------------------------------------
+  // Private Methods
+  // --------------------------------------------------------------------------
 
-    def write(stream: Stream[String]): Try[Unit] = {
-      Try {
-        msg.verbose(s"Writing JSON object(s) to output.")
-        stream.foreach(s => out.write(s"$s\n"))
-      }
+  private def write(strings: Stream[String], out: Writer): Try[Unit] = {
+    msg.verbose("Writing people records to output stream.")
+    Try {
+      strings.foreach(s => out.write(s"$s\n"))
     }
+  }
 
+  private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
     val converter = new JSONConverter(
       headerFormat  = params.headerFormat,
       writeSSNs     = params.generateSSNs,
@@ -121,7 +113,8 @@ trait PeopleWriter {
     )
 
     for { json <- converter.convertPeople(people)
-          _    <- write(json) }
+          _    <- write(json, out)
+          _    <- Try { out.flush() } }
     yield ()
   }
 }
@@ -133,6 +126,8 @@ trait PeopleWriter {
   */
 class MainPeopleWriter(val params: Params, val msg: MessageHandler)
   extends PeopleWriter with OutputHandler {
+
+  val BirthDateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
   /** Handles writing the output to the actual destinations.
     *
@@ -156,9 +151,8 @@ class MainPeopleWriter(val params: Params, val msg: MessageHandler)
     }
     .getOrElse {
       for { f   <- Try { new OutputStreamWriter(System.out) }
-            res <- code(f)
-            _   <- Try { f.flush() } }
-        yield res
+            res <- code(f) }
+      yield res
     }
   }
 }

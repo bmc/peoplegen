@@ -177,13 +177,13 @@ private[peoplegen] trait CommandLineParserBase {
             t
           case Failure(e: UsageException) =>
             val msg = e.message
-            if (msg.nonEmpty) System.err.println(s"Error: $msg")
+            if (msg.nonEmpty) errorStream.println(s"Error: $msg")
             parser.showUsage()
             Failure(e)
 
           case Failure(e: CommandLineException) =>
             val msg = e.message
-            if (msg.nonEmpty) System.err.println(s"Error: $msg")
+            if (msg.nonEmpty) errorStream.println(s"Error: $msg")
             Failure(e)
 
           case f @ Failure(e) =>
