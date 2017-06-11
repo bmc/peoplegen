@@ -1,24 +1,14 @@
 package org.clapper.peoplegen
-import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.Date
-
-import scala.util.{Failure, Success}
 
 class CommandLineParserSpec extends BaseSpec {
 
   object TestCommandLineParser extends CommandLineParserBase {
-    val stdoutBuffer = new ByteArrayOutputStream
-    val stderrBuffer = new ByteArrayOutputStream
+    val stdoutBuffer = new MessageBuffer
+    val stderrBuffer = new MessageBuffer
 
-    override def outputStream: PrintStream = new PrintStream(stdoutBuffer)
-    override def errorStream: PrintStream = new PrintStream(stderrBuffer)
-
-    def outputString: String = stdoutBuffer.toString(defaultEncoding)
-    def errorString: String = stderrBuffer.toString(defaultEncoding)
-
-    private def defaultEncoding = {
-      Option(System.getProperty("file.encoding")).getOrElse("UTF-8")
-    }
+    val errorStream  = stderrBuffer.asPrintStream
+    val outputStream = stdoutBuffer.asPrintStream
   }
 
   val TestBuildInfo = new BuildInfo(name           = "peoplegen",
@@ -29,7 +19,7 @@ class CommandLineParserSpec extends BaseSpec {
     val args = Array("-x")
 
     TestCommandLineParser.parseParams(args, TestBuildInfo) shouldBe 'failure
-    TestCommandLineParser.errorString should include ("Usage")
+    TestCommandLineParser.stderrBuffer.asString should include ("Usage")
   }
 
   it should "succeed with valid parameters" in {

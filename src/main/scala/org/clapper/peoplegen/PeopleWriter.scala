@@ -4,6 +4,8 @@ import java.io.{FileWriter, OutputStreamWriter, Writer}
 import java.nio.file.Path
 import java.text.SimpleDateFormat
 
+import org.clapper.peoplegen.converters.{CSVConverter, JSONConverter}
+
 import scala.util.Try
 
 /** The `PeopleWriter` class must be passed an instance of this class,
@@ -44,52 +46,17 @@ trait PeopleWriter {
   private val BirthDateFormat        = new SimpleDateFormat("yyyy-MM-dd")
   private val VerbosePersonThreshold = 1000
 
-  private object Headers extends Enumeration {
-    type Headers = Value
+  // --------------------------------------------------------------------------
+  // Public Methods
+  // --------------------------------------------------------------------------
 
-    val FirstName  = Value
-    val MiddleName = Value
-    val LastName   = Value
-    val BirthDate  = Value
-    val SSN        = Value
-    val Gender     = Value
-    val Salary     = Value
-
-    def inOrder = Seq(
-      FirstName, MiddleName, LastName, Gender, BirthDate, SSN, Salary
-    )
-  }
-
-  private val HeaderNames = Map(
-    HeaderFormat.English -> Map(
-      Headers.FirstName  -> "first name",
-      Headers.MiddleName -> "middle name",
-      Headers.LastName   -> "last name",
-      Headers.BirthDate  -> "birth date",
-      Headers.SSN        -> "ssn",
-      Headers.Gender     -> "gender",
-      Headers.Salary     -> "salary"
-    ),
-    HeaderFormat.CamelCase -> Map(
-      Headers.FirstName  -> "firstName",
-      Headers.MiddleName -> "middleName",
-      Headers.LastName   -> "lastName",
-      Headers.BirthDate  -> "birthDate",
-      Headers.SSN        -> "ssn",
-      Headers.Gender     -> "gender",
-      Headers.Salary     -> "salary"
-    ),
-    HeaderFormat.SnakeCase -> Map(
-      Headers.FirstName  -> "first_name",
-      Headers.MiddleName -> "middle_name",
-      Headers.LastName   -> "last_name",
-      Headers.BirthDate  -> "birth_date",
-      Headers.SSN        -> "ssn",
-      Headers.Gender     -> "gender",
-      Headers.Salary     -> "salary"
-    )
-  )
-
+  /** Write a stream of `Person` objects to the output file specified in the
+    * parameters passed to the constructor.
+    *
+    * @param people  the stream of generated people
+    *
+    * @return `Success` on success, `Failure` on error
+    */
   def write(people: Stream[Person]): Try[Unit] = {
     msg.verbose(s"Writing ${params.totalPeople} people records.")
 
@@ -101,120 +68,61 @@ trait PeopleWriter {
     }
   }
 
-  private def atVerboseThreshold(index: Int): Boolean = {
-    ((index + 1) % VerbosePersonThreshold) == 0
-  }
+  // --------------------------------------------------------------------------
+  // Private Methods
+  // --------------------------------------------------------------------------
 
   private def writeCSV(people: Stream[Person], out: Writer): Try[Unit] = {
-    import com.github.tototoshi.csv.{CSVWriter, DefaultCSVFormat}
+    import Fields._
 
     def getHeaders: List[String] = {
-      Headers.inOrder.map { h => HeaderNames(params.headerFormat)(h) }.toList
+      FieldSet.inOrder.map { h => FieldNames(params.headerFormat)(h) }.toList
     }
 
-    def personToCSVFields(p: Person): List[String] = {
-      Headers.inOrder.flatMap {
-        case Headers.SSN =>
-          if (params.generateSSNs) Some(p.ssn) else None
-        case Headers.Salary =>
-          if (params.generateSalaries) Some(p.salary.toString) else None
-        case Headers.BirthDate =>
-          Some(BirthDateFormat.format(p.birthDate))
-        case Headers.FirstName =>
-          Some(p.firstName)
-        case Headers.MiddleName =>
-          Some(p.middleName)
-        case Headers.LastName =>
-          Some(p.lastName.toString)
-        case Headers.Gender =>
-          Some(p.gender.toString)
-      }
-      .toList
-    }
-
-    Try {
-      implicit object MyFormat extends DefaultCSVFormat {
-        override val delimiter = params.columnSep
-      }
-
-      val w = CSVWriter.open(out)
-      if (params.generateHeader)
-        w.writeRow(getHeaders)
-
-      for ((p, i) <- people.zipWithIndex) {
-        if (atVerboseThreshold(i)) msg.verbose(s"... ${i + 1}")
-        w.writeRow(personToCSVFields(p))
+    def write(stream: Stream[String]): Try[Unit] = {
+      Try {
+        msg.verbose(s"Writing CSV object(s) to output.")
+        stream.foreach(s => out.write(s"$s\n"))
       }
     }
+
+    val converter = new CSVConverter(
+      headerFormat  = params.headerFormat,
+      delimiter     = params.columnSep,
+      writeHeader   = params.generateHeader,
+      writeSSNs     = params.generateSSNs,
+      writeSalaries = params.generateSalaries,
+      dateFormat    = BirthDateFormat,
+      msg           = this.msg
+    )
+
+    for { csv <- converter.convertPeople(people)
+          _   <- write(csv) }
+    yield ()
   }
 
   private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
-    import spray.json._
 
-    object PersonProtocol extends DefaultJsonProtocol {
-      implicit object PersonJsonFormat extends RootJsonFormat[Person] {
-        def write(p: Person): JsValue = {
-          val names = HeaderNames(params.headerFormat)
-          val fields = Headers.inOrder.flatMap {
-            case h @ Headers.SSN =>
-              if (params.generateSSNs)
-                Some(names(h) -> JsString(p.ssn))
-              else
-                None
-            case h @ Headers.Salary =>
-              if (params.generateSalaries)
-                Some(names(h) -> JsNumber(p.salary))
-              else
-                None
-            case h @ Headers.Gender =>
-              Some(names(h) -> JsString(p.gender.toString))
-            case h @ Headers.FirstName =>
-              Some(names(h) -> JsString(p.firstName))
-            case h @ Headers.MiddleName =>
-              Some(names(h) -> JsString(p.middleName))
-            case h @ Headers.LastName =>
-              Some(names(h) -> JsString(p.lastName))
-            case h @ Headers.BirthDate =>
-              Some(names(h) -> JsString(BirthDateFormat.format(p.birthDate)))
-          }
-
-          JsObject(fields: _*)
-        }
-
-        def read(value: JsValue): Person = {
-          deserializationError("Read not supported")
-        }
+    def write(stream: Stream[String]): Try[Unit] = {
+      Try {
+        msg.verbose(s"Writing JSON object(s) to output.")
+        stream.foreach(s => out.write(s"$s\n"))
       }
     }
 
-    import PersonProtocol._
+    val converter = new JSONConverter(
+      headerFormat  = params.headerFormat,
+      writeSSNs     = params.generateSSNs,
+      writeSalaries = params.generateSalaries,
+      dateFormat    = BirthDateFormat,
+      jsonFormat    = params.jsonFormat,
+      pretty        = params.prettyJSON,
+      msg           = this.msg
+    )
 
-    def convertToJSONArray = {
-      msg.verbose(s"Converting ${params.totalPeople} people records to JSON.")
-      people.toSeq.toJson
-    }
-
-    Try {
-
-      if (params.prettyJSON) {
-        val jsonString = convertToJSONArray.prettyPrint
-        msg.verbose(s"Writing pretty-printed JSON array.")
-        out.write(s"$jsonString\n")
-      }
-      else if (params.jsonFormat == JSONFormat.AsArray) {
-        val jsonString = convertToJSONArray.compactPrint
-        msg.verbose(s"Writing compact JSON array.")
-        out.write(s"$jsonString\n")
-      }
-
-      else {
-        for ((p, i) <- people.zipWithIndex) {
-          if (atVerboseThreshold(i)) msg.verbose(s"... ${i + 1}")
-          val jsonString = p.toJson.compactPrint
-          out.write(s"$jsonString\n")
-        }
-      }
-    }
+    for { json <- converter.convertPeople(people)
+          _    <- write(json) }
+    yield ()
   }
 }
 

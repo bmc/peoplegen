@@ -19,12 +19,11 @@ InstallDir := Option(System.getProperty("user.home")).map(fileutil.joinPath(_, "
 
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
-  "com.github.scopt"     %% "scopt"          % "3.6.0",
-  "org.clapper"          %% "grizzled-scala" % "4.2.0",
-  "io.spray"             %% "spray-json"     % "1.3.3",
-  "com.github.tototoshi" %% "scala-csv"      % "1.3.4",
-  "org.scalanlp"         %% "breeze"         % "0.13.1",
-  "org.scalatest"        %% "scalatest"      % "3.0.1" % Test
+  "com.github.scopt" %% "scopt"          % "3.6.0",
+  "org.clapper"      %% "grizzled-scala" % "4.2.0",
+  "io.spray"         %% "spray-json"     % "1.3.3",
+  "org.scalanlp"     %% "breeze"         % "0.13.1",
+  "org.scalatest"    %% "scalatest"      % "3.0.1" % Test
 )
 
 // ---------------------------------------------------------------------------
