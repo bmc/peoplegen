@@ -2,21 +2,41 @@ package org.clapper.peoplegen
 
 import java.nio.file.{Path, Paths}
 
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
+/** File format to generate.
+  */
 private[peoplegen] object FileFormat extends Enumeration {
   type FileFormat = Value
 
-  val CSV = Value
-  val JSON = Value
+  val CSV = Value("csv")
+  val JSON = Value("json")
 }
 
+/** Header format to use.
+  */
 private[peoplegen] object HeaderFormat extends Enumeration {
   type HeaderFormat = Value
 
   val SnakeCase = Value
   val English   = Value
   val CamelCase = Value
+}
+
+/** How to generate the JSON output, if JSON is being generated.
+  */
+private[peoplegen] object JSONFormat extends Enumeration {
+  type JSONFormat = Value
+
+  /** Generate the people in one big JSON array of object.
+    */
+  val AsArray = Value("array")
+
+  /** Generate the people as one JSON object per line, not wrapped in an
+    * array. (Apache Spark wants this format, for instance.)
+    */
+  val AsRows = Value("rows")
 }
 
 case class SalaryInfo(mean:  Int = SalaryInfo.DefaultMean,
@@ -44,6 +64,7 @@ import HeaderFormat.HeaderFormat
   * @param columnSep        Separator to use in CSV mode
   * @param prettyJSON       Pretty-print JSON, instead of printing it in
   *                         one compact line.
+  * @param jsonFormat       how to generate JSON
   * @param verbose          Whether or not to generate verbose messages
   * @param totalPeople      Total people records to generate
   * @param outputFile       Where to write the output (or stdout if None)
@@ -61,6 +82,7 @@ private[peoplegen] case class Params(
   yearMax:          Option[Int] = None,
   columnSep:        Char = ',',
   prettyJSON:       Boolean = false,
+  jsonFormat:       JSONFormat.Value = JSONFormat.AsRows,
   verbose:          Boolean = false,
   totalPeople:      Int = 0,
   outputFile:       Option[Path] = None
@@ -91,10 +113,26 @@ private[peoplegen] trait CommandLineParser {
 
   implicit val pathRead: Read[Path] = Read.reads { s => Paths.get(s) }
 
-  implicit val fileFormatRead: Read[FileFormat.Value] = Read.reads {
-    case "csv"  => FileFormat.CSV
-    case "json" => FileFormat.JSON
-    case s      => throw new CommandLineException(s"""Unknown format: $s""")
+  implicit val fileFormatRead: Read[FileFormat.Value] = Read.reads { s =>
+    Try {
+      FileFormat.withName(s)
+    }
+    .recoverWith {
+      case NonFatal(e) =>
+        Failure(new CommandLineException(s"""Unknown file format: $s"""))
+    }
+    .get
+  }
+
+  implicit val jsonFormatRead: Read[JSONFormat.Value] = Read.reads { s =>
+    Try {
+      JSONFormat.withName(s)
+    }
+    .recoverWith {
+      case NonFatal(e) =>
+        Failure(new CommandLineException(s"""Unknown JSON format: $s"""))
+    }
+    .get
   }
 
   /** Parse the command line parameters.
@@ -210,6 +248,16 @@ private[peoplegen] trait CommandLineParser {
           params.copy(headerFormat = HeaderFormat.English)
         }
 
+      opt[JSONFormat.Value]('j', "json-format")
+        .optional
+        .valueName("<format>")
+        .text("If generating JSON, specify how the JSON is generated. " +
+              "Ignored if --pretty is specified. Legal values:\\n" +
+              s""""${JSONFormat.AsArray}": write one JSON array of records.\\n""" +
+              s""""${JSONFormat.AsRows}": write one JSON object per line.\\n""" +
+              s"Default: ${JSONFormat.AsRows}")
+        .action { case (fmt, params) => params.copy(jsonFormat = fmt) }
+
       opt[Unit]("pretty")
         .optional
         .text("Pretty-print JSON, instead of printing it all on one line. " +
@@ -257,13 +305,15 @@ private[peoplegen] trait CommandLineParser {
         val cols = Option(System.getenv("COLUMNS")).flatMap { sColumns =>
           Try { Some(sColumns.toInt) }.recover { case _: Exception => None }.get
         }
-          .getOrElse(80) - 1
+        .getOrElse(80) - 1
 
         val lines = usage.split("\n")
         val u = for (line <- lines) yield {
           val leadingBlanks = line.takeWhile(Character.isWhitespace).length
           val w = WordWrapper(indentation = leadingBlanks, wrapWidth = cols)
-          val line2 = w.wrap(line.dropWhile(Character.isWhitespace))
+          // Special case: Allow the metacharacter string \n as an embedded
+          // newline token.
+          val line2 = w.wrap(line.dropWhile(Character.isWhitespace).replace("\\n", "\n"))
           if (line2 startsWith "Command")
             s"\n$line2"
           else

@@ -174,18 +174,33 @@ class PeopleWriter(params: Params, msg: MessageHandler) {
       }
     }
 
-    Try {
-      import PersonProtocol._
+    import PersonProtocol._
+
+    def convertToJSONArray = {
       msg.verbose(s"Converting ${params.totalPeople} people records to JSON.")
-      val json = people.toSeq.toJson
+      people.toSeq.toJson
+    }
 
-      val jsonString = if (params.prettyJSON)
-        json.prettyPrint
-      else
-        json.compactPrint
+    Try {
 
-      msg.verbose(s"Writing JSON.")
-      out.write(s"$jsonString\n")
+      if (params.prettyJSON) {
+        val jsonString = convertToJSONArray.prettyPrint
+        msg.verbose(s"Writing pretty-printed JSON array.")
+        out.write(s"$jsonString\n")
+      }
+      else if (params.jsonFormat == JSONFormat.AsArray) {
+        val jsonString = convertToJSONArray.compactPrint
+        msg.verbose(s"Writing compact JSON array.")
+        out.write(s"$jsonString\n")
+      }
+
+      else {
+        for ((p, i) <- people.zipWithIndex) {
+          if (atVerboseThreshold(i)) msg.verbose(s"... ${i + 1}")
+          val jsonString = p.toJson.compactPrint
+          out.write(s"$jsonString\n")
+        }
+      }
     }
   }
 }
