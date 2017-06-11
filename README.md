@@ -102,7 +102,7 @@ will abort.
 * `-F <format>` or `--format <format>`: The file format to generate. Allowable
   values: "csv" or "json"
 
-* `--camel`: Use camelCase for CSV column names or JSON field names. For
+* `--camel`: Use camel case for CSV column names or JSON field names. For
   example: `firstName`, `lastName`
 
 * `--english`: Use English (space-separated) names for column names. For
