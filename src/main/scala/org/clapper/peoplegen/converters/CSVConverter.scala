@@ -2,7 +2,6 @@ package org.clapper.peoplegen.converters
 
 import java.text.DateFormat
 
-import org.clapper.peoplegen.Fields.FieldSet
 import org.clapper.peoplegen.{HeaderFormat, MessageHandler, Person}
 
 import scala.util.{Success, Try}
@@ -13,6 +12,7 @@ import scala.util.{Success, Try}
   * @param headerFormat    header format, used for field name generation
   * @param delimiter       the delimiter to use
   * @param writeHeader     whether or not to write a head
+  * @param writeIDs        whether or not to write IDs
   * @param writeSSNs       whether or not to write SSNs
   * @param writeSalaries   whether or not to write salaries
   * @param dateFormat      a date formatter
@@ -21,6 +21,7 @@ import scala.util.{Success, Try}
 class CSVConverter(val headerFormat:  HeaderFormat.Value,
                    delimiter:         Char,
                    writeHeader:       Boolean,
+                   writeIDs:          Boolean,
                    writeSSNs:         Boolean,
                    writeSalaries:     Boolean,
                    dateFormat:        DateFormat,
@@ -37,6 +38,7 @@ class CSVConverter(val headerFormat:  HeaderFormat.Value,
     val names = FieldNames(headerFormat)
 
     FieldSet.inOrder.flatMap {
+      case h @ FieldSet.ID     => if (writeIDs) Some(names(h)) else None
       case h @ FieldSet.SSN    => if (writeSSNs) Some(names(h)) else None
       case h @ FieldSet.Salary => if (writeSalaries) Some(names(h)) else None
       case h                   => Some(names(h))
@@ -76,6 +78,8 @@ class CSVConverter(val headerFormat:  HeaderFormat.Value,
   private def convertOne(person: Person): String = {
     def personToCSVFields(p: Person): Seq[String] = {
       FieldSet.inOrder.flatMap {
+        case h @ FieldSet.ID =>
+          if (writeIDs) Some(p.id.toString) else None
         case FieldSet.SSN =>
           if (writeSSNs) Some(p.ssn) else None
         case FieldSet.Salary =>

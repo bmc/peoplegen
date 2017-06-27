@@ -4,6 +4,7 @@ object Fields {
   object FieldSet extends Enumeration {
     type FieldSet = Value
 
+    val ID         = Value
     val FirstName  = Value
     val MiddleName = Value
     val LastName   = Value
@@ -13,12 +14,13 @@ object Fields {
     val Salary     = Value
 
     def inOrder = Seq(
-      FirstName, MiddleName, LastName, Gender, BirthDate, SSN, Salary
+      ID, FirstName, MiddleName, LastName, Gender, BirthDate, SSN, Salary
     )
   }
 
   val FieldNames = Map(
     HeaderFormat.English -> Map(
+      FieldSet.ID         -> "id",
       FieldSet.FirstName  -> "first name",
       FieldSet.MiddleName -> "middle name",
       FieldSet.LastName   -> "last name",
@@ -28,6 +30,7 @@ object Fields {
       FieldSet.Salary     -> "salary"
     ),
     HeaderFormat.CamelCase -> Map(
+      FieldSet.ID         -> "id",
       FieldSet.FirstName  -> "firstName",
       FieldSet.MiddleName -> "middleName",
       FieldSet.LastName   -> "lastName",
@@ -37,6 +40,7 @@ object Fields {
       FieldSet.Salary     -> "salary"
     ),
     HeaderFormat.SnakeCase -> Map(
+      FieldSet.ID         -> "id",
       FieldSet.FirstName  -> "first_name",
       FieldSet.MiddleName -> "middle_name",
       FieldSet.LastName   -> "last_name",

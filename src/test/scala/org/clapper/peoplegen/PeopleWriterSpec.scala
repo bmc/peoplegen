@@ -21,6 +21,7 @@ class PeopleWriterSpec extends BaseSpec {
     generateSSNs     = true,
     generateHeader   = true,
     generateSalaries = true,
+    generateIDs      = true,
     columnSep        = Delimiter
   )
 
@@ -43,6 +44,7 @@ class PeopleWriterSpec extends BaseSpec {
     writeHeader   = TestParams.generateHeader,
     writeSSNs     = TestParams.generateSSNs,
     writeSalaries = TestParams.generateSalaries,
+    writeIDs      = TestParams.generateIDs,
     dateFormat    = TestBirthDateFormat,
     msg           = EmptyMessageHandler
   )
@@ -90,6 +92,7 @@ class PeopleWriterSpec extends BaseSpec {
     val converter = new JSONConverter(
       headerFormat  = TestParams.headerFormat,
       jsonFormat    = JSONFormat.CompactRows,
+      writeIDs      = TestParams.generateIDs,
       writeSSNs     = TestParams.generateSSNs,
       writeSalaries = TestParams.generateSalaries,
       dateFormat    = TestBirthDateFormat,

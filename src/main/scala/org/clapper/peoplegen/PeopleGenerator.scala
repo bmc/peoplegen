@@ -52,14 +52,14 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
                                maleFirstNames:   Array[String]):
     Try[Stream[Person]] = {
 
-    def gen(malesLeft: Int, femalesLeft: Int): Stream[Person] = {
+    def gen(nextID: Int, malesLeft: Int, femalesLeft: Int): Stream[Person] = {
       if (femalesLeft > 0) {
-        makePerson(Gender.Female, femaleFirstNames, lastNames) #::
-          gen(malesLeft, femalesLeft - 1)
+        makePerson(nextID, Gender.Female, femaleFirstNames, lastNames) #::
+          gen(nextID + 1, malesLeft, femalesLeft - 1)
       }
       else if (malesLeft > 0) {
-        makePerson(Gender.Female, femaleFirstNames, lastNames) #::
-          gen(malesLeft - 1, femalesLeft)
+        makePerson(nextID, Gender.Female, femaleFirstNames, lastNames) #::
+          gen(nextID + 1, malesLeft - 1, femalesLeft)
       }
       else
         Stream.Empty
@@ -72,7 +72,7 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
     msg.verbose(s"Generating ${params.totalPeople} people" +
                 s"($totalFemales females, $totalMales males)")
     Try {
-      gen(totalMales, totalFemales)
+      gen(1, totalMales, totalFemales)
     }
   }
 
@@ -101,11 +101,13 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
     }
   }
 
-  private def makePerson(gender:     Gender.Value,
+  private def makePerson(id:         Int,
+                         gender:     Gender.Value,
                          firstNames: Array[String],
                          lastNames:  Array[String]): Person = {
     Person(
-      firstName = RandomUtil.randomChoice(firstNames),
+      id         = id,
+      firstName  = RandomUtil.randomChoice(firstNames),
       middleName = RandomUtil.randomChoice(firstNames),
       lastName   = RandomUtil.randomChoice(lastNames),
       gender     = gender,

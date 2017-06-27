@@ -61,14 +61,13 @@ import HeaderFormat.HeaderFormat
   * @param malePercent      Percentage of male names
   * @param generateSSNs     Whether or not to generate Social Security Numbers
   * @param generateHeader   Whether or not to generate a header (CSV only)
+  * @param generateIDs      Whether or not to generate unique per-row ID values
   * @param headerFormat     The format of the file header (CSV only)
   * @param salaryInfo       Salary generation data
   * @param generateSalaries Whether or not to generate salary info
   * @param yearStart          Minimum birth year
   * @param yearEnd          Maximum birth year
   * @param columnSep        Separator to use in CSV mode
-  * @param prettyJSON       Pretty-print JSON, instead of printing it in
-  *                         one compact line.
   * @param jsonFormat       how to generate JSON
   * @param verbose          Whether or not to generate verbose messages
   * @param totalPeople      Total people records to generate
@@ -80,6 +79,7 @@ private[peoplegen] case class Params(
   malePercent:      Int = -1,
   generateSSNs:     Boolean = false,
   generateHeader:   Boolean = false,
+  generateIDs:      Boolean = false,
   headerFormat:     HeaderFormat = HeaderFormat.CamelCase,
   salaryInfo:       SalaryInfo = SalaryInfo(),
   generateSalaries: Boolean = false,
@@ -294,12 +294,17 @@ private[peoplegen] trait CommandLineParserBase {
         .text("Percentage of male names. Defaults to 50.")
         .action { (percent, params) => params.copy(malePercent = percent) }
 
+      opt[Unit]("id")
+        .optional
+        .text("Generate unique per-row IDs.")
+        .action { (_, params) => params.copy(generateIDs = true) }
+
       opt[Unit]("ssn")
         .optional
-        .text("Whether or not to generate (fake) SSNs.")
+        .text("Generate (fake) Social Security Numbers.")
         .action { (_, params) => params.copy(generateSSNs = true) }
 
-      opt[Unit]("salaries")
+      opt[Unit]("salary")
         .optional
         .text("Generate salary data. Salaries are generated as a normal " +
               s"distribution around a mean of ${SalaryInfo.DefaultMean} " +

@@ -12,11 +12,13 @@ import scala.util.Try
 /** Spray JSON conversion protocol (write-only, no read).
   *
   * @param headerFormat    header format, used for field name generation
+  * @param writeIDs        whether or not to write IDs
   * @param writeSSNs       whether or not to write SSNs
   * @param writeSalaries   whether or not to write salaries
   * @param dateFormat      a date formatter
   */
 private[peoplegen] class PersonProtocol(headerFormat:  HeaderFormat.Value,
+                                        writeIDs:      Boolean,
                                         writeSSNs:     Boolean,
                                         writeSalaries: Boolean,
                                         dateFormat:    DateFormat)
@@ -26,6 +28,8 @@ private[peoplegen] class PersonProtocol(headerFormat:  HeaderFormat.Value,
     def write(p: Person): JsValue = {
       val names = FieldNames(headerFormat)
       val fields = FieldSet.inOrder.flatMap {
+        case h @ FieldSet.ID =>
+          if (writeIDs) Some(names(h) -> JsNumber(p.id)) else None
         case h @ FieldSet.SSN =>
           if (writeSSNs) Some(names(h) -> JsString(p.ssn)) else None
         case h @ FieldSet.Salary =>
@@ -55,6 +59,7 @@ private[peoplegen] class PersonProtocol(headerFormat:  HeaderFormat.Value,
   * of another JSON library.
   *
   * @param headerFormat    header format, used for field name generation
+  * @param writeIDs        whether or not to write IDs
   * @param writeSSNs       whether or not to write SSNs
   * @param writeSalaries   whether or not to write salaries
   * @param dateFormat      a date formatter
@@ -62,6 +67,7 @@ private[peoplegen] class PersonProtocol(headerFormat:  HeaderFormat.Value,
   * @param msg             `MessageHandler` to use
   */
 class JSONConverter(val headerFormat:  HeaderFormat.Value,
+                    writeIDs:          Boolean,
                     writeSSNs:         Boolean,
                     writeSalaries:     Boolean,
                     dateFormat:        DateFormat,
@@ -69,10 +75,13 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
                     msg:               MessageHandler)
   extends Converter {
 
-  private val protocol = new PersonProtocol(headerFormat,
-                                            writeSSNs,
-                                            writeSalaries,
-                                            dateFormat)
+  private val protocol = new PersonProtocol(
+    headerFormat  = headerFormat,
+    writeIDs      = writeIDs,
+    writeSSNs     = writeSSNs,
+    writeSalaries = writeSalaries,
+    dateFormat    = dateFormat
+  )
 
   import protocol._
 

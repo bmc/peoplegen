@@ -77,6 +77,7 @@ trait PeopleWriter {
     val converter = new CSVConverter(
       headerFormat  = params.headerFormat,
       delimiter     = params.columnSep,
+      writeIDs      = params.generateIDs,
       writeHeader   = params.generateHeader,
       writeSSNs     = params.generateSSNs,
       writeSalaries = params.generateSalaries,
@@ -104,6 +105,7 @@ trait PeopleWriter {
   private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
     val converter = new JSONConverter(
       headerFormat  = params.headerFormat,
+      writeIDs      = params.generateIDs,
       writeSSNs     = params.generateSSNs,
       writeSalaries = params.generateSalaries,
       dateFormat    = BirthDateFormat,

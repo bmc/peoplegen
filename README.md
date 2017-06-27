@@ -67,6 +67,8 @@ to 50. If you specify only one percentage, the other is set to the remainder.
 If you set _both_ percentages, they _must_ add up to 100, or `peoplegen`
 will abort.
 
+* `--id`: Generate unique per-row ID values.
+
 * `--ssn`: Generate Social Security Number values. Note that the generated
   SSNs are deliberately invalid, as described at 
   <https://stackoverflow.com/a/2313726/53495>.

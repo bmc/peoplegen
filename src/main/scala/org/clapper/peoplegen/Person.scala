@@ -4,6 +4,7 @@ import java.util.Date
 
 /** The internal form of a generated person.
   *
+  * @param id           the ID
   * @param firstName    the first name
   * @param middleName   the middle name
   * @param lastName     the last name
@@ -18,5 +19,6 @@ case class Person(firstName:  String,
                   gender:     Gender.Value,
                   birthDate:  Date,
                   salary:     Int,
-                  ssn:        String)
+                  ssn:        String,
+                  id:         Int)
 
