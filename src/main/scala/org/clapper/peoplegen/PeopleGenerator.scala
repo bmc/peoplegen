@@ -58,7 +58,7 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
           gen(nextID + 1, malesLeft, femalesLeft - 1)
       }
       else if (malesLeft > 0) {
-        makePerson(nextID, Gender.Male, femaleFirstNames, lastNames) #::
+        makePerson(nextID, Gender.Male, maleFirstNames, lastNames) #::
           gen(nextID + 1, malesLeft - 1, femalesLeft)
       }
       else

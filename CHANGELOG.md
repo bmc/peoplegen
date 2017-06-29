@@ -1,5 +1,9 @@
 # Change Log for _peoplegen_
 
+**Version 2.1.2**
+
+Fixed bug in generation: Female names used for males.
+
 **Version 2.1.1**
 
 Fixed bug in generation of people: No males were being generated.
