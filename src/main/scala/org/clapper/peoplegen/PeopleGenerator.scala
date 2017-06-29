@@ -58,7 +58,7 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
           gen(nextID + 1, malesLeft, femalesLeft - 1)
       }
       else if (malesLeft > 0) {
-        makePerson(nextID, Gender.Female, femaleFirstNames, lastNames) #::
+        makePerson(nextID, Gender.Male, femaleFirstNames, lastNames) #::
           gen(nextID + 1, malesLeft - 1, femalesLeft)
       }
       else
@@ -68,7 +68,6 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
     val totalMales = (params.totalPeople * params.malePercent) / 100
     val w = (params.totalPeople * params.femalePercent) / 100
     val totalFemales = w + math.abs(params.totalPeople - totalMales - w)
-
     msg.verbose(s"Generating ${params.totalPeople} people" +
                 s"($totalFemales females, $totalMales males)")
     Try {
