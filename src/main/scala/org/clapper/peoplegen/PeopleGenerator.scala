@@ -71,7 +71,9 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
     msg.verbose(s"Generating ${params.totalPeople} people" +
                 s"($totalFemales females, $totalMales males)")
     Try {
-      gen(1, totalMales, totalFemales)
+      timeOp("generation", msg) {
+        gen(1, totalMales, totalFemales)
+      }
     }
   }
 
@@ -88,15 +90,16 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
   }
 
   private def loadNames(resourceName: String): Try[Array[String]] = {
-    msg.verbose(s"""Loading resource "$resourceName".""")
-    val is = Option(classLoader.getResourceAsStream(resourceName))
-    is.map { stream =>
-      Try {
-        Source.fromInputStream(stream).getLines.toArray
+    timeOp(s"""loading resource "$resourceName".""", msg) {
+      val is = Option(classLoader.getResourceAsStream(resourceName))
+      is.map { stream =>
+        Try {
+          Source.fromInputStream(stream).getLines.toArray
+        }
       }
-    }
-    .getOrElse {
-      Failure(new IOException(s"""Can't load resource "$resourceName""""))
+      .getOrElse {
+        Failure(new IOException(s"""Can't load resource "$resourceName""""))
+      }
     }
   }
 

@@ -4,7 +4,7 @@ import java.io.{FileWriter, OutputStreamWriter, Writer}
 import java.nio.file.Path
 import java.text.{DateFormat, SimpleDateFormat}
 
-import org.clapper.peoplegen.converters.{CSVConverter, JSONConverter}
+import org.clapper.peoplegen.converters.{CSVConverter, Converter, JSONConverter}
 
 import scala.util.Try
 
@@ -61,62 +61,58 @@ trait PeopleWriter {
   def write(people: Stream[Person]): Try[Unit] = {
     msg.verbose(s"Writing ${params.totalPeople} people records.")
 
-    withOutputFile(params.outputFile) { w =>
-      params.fileFormat match {
-        case FileFormat.CSV  => writeCSV(people, w)
-        case FileFormat.JSON => writeJSON(people, w)
+    def convert(): Try[Stream[String]] = {
+      timeOp(s"converting data to ${params.fileFormat}", msg) {
+        converterFor(params.fileFormat).convertPeople(people)
       }
     }
-  }
 
-  // --------------------------------------------------------------------------
-  // Private Methods
-  // --------------------------------------------------------------------------
+    withOutputFile(params.outputFile) { out =>
 
-  private def writeCSV(people: Stream[Person], out: Writer): Try[Unit] = {
-    val converter = new CSVConverter(
-      headerFormat  = params.headerFormat,
-      delimiter     = params.columnSep,
-      writeIDs      = params.generateIDs,
-      writeHeader   = params.generateHeader,
-      writeSSNs     = params.generateSSNs,
-      writeSalaries = params.generateSalaries,
-      dateFormat    = BirthDateFormat,
-      msg           = this.msg
-    )
 
-    for { csv <- converter.convertPeople(people)
-          _   <- write(csv, out)
-          _   <- Try { out.flush() } }
-    yield ()
-  }
-
-  // --------------------------------------------------------------------------
-  // Private Methods
-  // --------------------------------------------------------------------------
-
-  private def write(strings: Stream[String], out: Writer): Try[Unit] = {
-    msg.verbose("Writing people records to output stream.")
-    Try {
-      strings.foreach(s => out.write(s"$s\n"))
+      for { data <- convert()
+            _    <- write(data, out)
+            _    <- Try { out.flush() } }
+      yield ()
     }
   }
 
-  private def writeJSON(people: Stream[Person], out: Writer): Try[Unit] = {
-    val converter = new JSONConverter(
-      headerFormat  = params.headerFormat,
-      writeIDs      = params.generateIDs,
-      writeSSNs     = params.generateSSNs,
-      writeSalaries = params.generateSalaries,
-      dateFormat    = BirthDateFormat,
-      jsonFormat    = params.jsonFormat,
-      msg           = this.msg
-    )
+  // --------------------------------------------------------------------------
+  // Private Methods
+  // --------------------------------------------------------------------------
 
-    for { json <- converter.convertPeople(people)
-          _    <- write(json, out)
-          _    <- Try { out.flush() } }
-    yield ()
+  private def converterFor(format: FileFormat.Value): Converter = {
+    format match {
+      case FileFormat.CSV  =>
+        new CSVConverter(
+          headerFormat  = params.headerFormat,
+          delimiter     = params.columnSep,
+          writeIDs      = params.generateIDs,
+          writeHeader   = params.generateHeader,
+          writeSSNs     = params.generateSSNs,
+          writeSalaries = params.generateSalaries,
+          dateFormat    = BirthDateFormat,
+          msg           = this.msg
+        )
+      case FileFormat.JSON =>
+        new JSONConverter(
+          headerFormat  = params.headerFormat,
+          writeIDs      = params.generateIDs,
+          writeSSNs     = params.generateSSNs,
+          writeSalaries = params.generateSalaries,
+          dateFormat    = BirthDateFormat,
+          jsonFormat    = params.jsonFormat,
+          msg           = this.msg
+        )
+    }
+  }
+
+  private def write(strings: Stream[String], out: Writer): Try[Unit] = {
+    timeOp("resolving stream and writing people records to output", msg) {
+      Try {
+        strings.foreach(s => out.write(s"$s\n"))
+      }
+    }
   }
 }
 
@@ -142,18 +138,29 @@ class MainPeopleWriter(val params: Params, val msg: MessageHandler)
     */
   def withOutputFile[T](outputFile: Option[Path])
                        (code: Writer => Try[T]): Try[T] = {
-    outputFile.map { path =>
-      import grizzled.util.withResource
-      import grizzled.util.CanReleaseResource.Implicits.CanReleaseCloseable
-
-      withResource(new FileWriter(path.toFile)) { w =>
-        code(w)
+    def getOutput: Try[(Writer, Boolean)] = {
+      Try {
+        outputFile.map { path =>
+          (new FileWriter(path.toFile), true)
+        }
+        .getOrElse {
+          (new OutputStreamWriter(System.out), false)
+        }
       }
     }
-    .getOrElse {
-      for { f   <- Try { new OutputStreamWriter(System.out) }
-            res <- code(f) }
-      yield res
+
+    def flushAndClose(out: Writer, close: Boolean): Try[Unit] = {
+      Try {
+        timeOp("flushing output stream", msg) {
+          out.flush()
+          if (close) out.close()
+        }
+      }
     }
+
+    for { (out, close)   <- getOutput
+          res <- code(out)
+          _ <- flushAndClose(out, close) }
+    yield res
   }
 }

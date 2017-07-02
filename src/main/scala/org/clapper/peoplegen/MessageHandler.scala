@@ -9,7 +9,10 @@ trait MessageHandler {
 /** A message handler that actually emits messages.
   */
 object VerboseMessageHandler extends MessageHandler {
-  def verbose(msg: String): Unit = println(msg)
+  def verbose(msg: String): Unit = {
+    Console.println(msg)
+    Console.flush()
+  }
 }
 
 /** A message handler that suppresses messages.

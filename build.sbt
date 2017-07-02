@@ -1,7 +1,7 @@
 import grizzled.file.{util => fileutil}
 
 name := """peoplegen"""
-version := "2.1.2"
+version := "2.1.3"
 
 scalaVersion := "2.11.11"
 scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked")
@@ -20,7 +20,7 @@ InstallDir := Option(System.getProperty("user.home")).map(fileutil.joinPath(_, "
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
   "com.github.scopt" %% "scopt"          % "3.6.0",
-  "org.clapper"      %% "grizzled-scala" % "4.2.0",
+  "org.clapper"      %% "grizzled-scala" % "4.4.1",
   "io.spray"         %% "spray-json"     % "1.3.3",
   "org.scalanlp"     %% "breeze"         % "0.13.1",
   "org.scalatest"    %% "scalatest"      % "3.0.1" % Test
