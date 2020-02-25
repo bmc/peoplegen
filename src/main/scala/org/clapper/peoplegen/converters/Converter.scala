@@ -21,7 +21,7 @@ trait Converter {
     *         for some formats (and with some parameters), or it may contain
     *         multiple strings.
     */
-  def convertPeople(people: Stream[Person]): Try[Stream[String]]
+  def convertPeople(people: LazyList[Person]): Try[LazyList[String]]
 
   /** Convert a single `Person` record to a string.
     *

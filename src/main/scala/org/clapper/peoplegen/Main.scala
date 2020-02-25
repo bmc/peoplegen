@@ -15,8 +15,7 @@ object Main {
     else
       EmptyMessageHandler
 
-    val t = for { bi        <- BuildInfo.load()
-                  params    <- CommandLineParser.parseParams(args, bi)
+    val t = for { params    <- CommandLineParser.parseParams(args)
                   msg       =  getMessageHandler(params)
                   generator  = new PeopleGenerator(params, msg)
                   people    <- generator.generatePeople

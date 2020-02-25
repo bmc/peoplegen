@@ -12,7 +12,7 @@ class PeopleGeneratorSpec extends BaseSpec {
                                   msg    = EmptyMessageHandler)
 
     val t = gen.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
     val people = t.get
     people.size shouldBe BaseParams.totalPeople
   }
@@ -22,7 +22,7 @@ class PeopleGeneratorSpec extends BaseSpec {
                                   msg    = EmptyMessageHandler)
 
     val t = gen.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
     val people = t.get
     val (females, males) = people partition { _.gender == Gender.Female }
     females.size shouldBe males.size
@@ -35,7 +35,7 @@ class PeopleGeneratorSpec extends BaseSpec {
     )
 
     val t = gen.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
     val people = t.get
     val (females, males) = people partition { _.gender == Gender.Female }
     females.size shouldBe BaseParams.totalPeople
@@ -49,7 +49,7 @@ class PeopleGeneratorSpec extends BaseSpec {
     )
 
     val t = gen.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
     val people = t.get
     val (females, males) = people partition { _.gender == Gender.Female }
     males.size shouldBe BaseParams.totalPeople
@@ -65,7 +65,7 @@ class PeopleGeneratorSpec extends BaseSpec {
       val gen = new PeopleGenerator(params = params, msg = EmptyMessageHandler)
 
       val t = gen.generatePeople
-      t shouldBe 'success
+      t shouldBe Symbol("success")
       val people = t.get
       val (females, males) = people partition { _.gender == Gender.Female }
 

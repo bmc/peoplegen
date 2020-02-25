@@ -160,14 +160,13 @@ private[peoplegen] trait CommandLineParserBase {
   /** Parse the command line parameters.
     *
     * @param args      command line arguments
-    * @param buildInfo the build information file
     *
     * @return `Success(Params)` on success. On error, error messages will have
     *         been written to the console, and this method will return
     *         `Failure(exception)`, with an exception you can ignore.
     */
-  def parseParams(args: Array[String], buildInfo: BuildInfo): Try[Params] = {
-    val parser = getParser(buildInfo)
+  def parseParams(args: Array[String]): Try[Params] = {
+    val parser = getParser()
     Console.withOut(outputStream) {
       Console.withErr(errorStream) {
         val t = parser
@@ -181,7 +180,6 @@ private[peoplegen] trait CommandLineParserBase {
           case Failure(e: UsageException) =>
             val msg = e.message
             if (msg.nonEmpty) errorStream.println(s"Error: $msg")
-            parser.showUsage()
             Failure(e)
 
           case Failure(e: CommandLineException) =>
@@ -272,13 +270,13 @@ private[peoplegen] trait CommandLineParserBase {
     *
     * @return the parser
     */
-  private def getParser(buildInfo: BuildInfo): OptionParser[Params] = {
+  private def getParser(): OptionParser[Params] = {
 
     new scopt.OptionParser[Params](Main.Constants.Name) {
-      override val showUsageOnError = true
+      override val showUsageOnError = Option(true)
       override def renderingMode = RenderingMode.OneColumn
 
-      head(s"\n${buildInfo.toString}\n")
+      head(s"\n${BuildInfo.toString}\n")
 
       help("help").text("This usage message.")
 
@@ -412,34 +410,6 @@ private[peoplegen] trait CommandLineParserBase {
         .optional
         .text("Output path.")
         .action { case (path, params) => params.copy(outputFile = Some(path)) }
-
-      override def showUsage(): Unit = {
-        import grizzled.string.WordWrapper
-
-        // scopt's generated usage message doesn't wrap properly. Add wrapping.
-        // Since we don't have access to all of scopt's internals, we have
-        // to brute-force this one.
-        val cols = Option(System.getenv("COLUMNS")).flatMap { sColumns =>
-          Try { Some(sColumns.toInt) }.recover { case _: Exception => None }.get
-        }
-        .getOrElse(80) - 1
-
-        val lines = usage.split("\n")
-        val u = for (line <- lines) yield {
-          val leadingBlanks = line.takeWhile(Character.isWhitespace).length
-          val w = WordWrapper(indentation = leadingBlanks, wrapWidth = cols)
-          // Special case: Allow the metacharacter string \n as an embedded
-          // newline token.
-          val line2 = w.wrap(line.dropWhile(Character.isWhitespace).replace("\\n", "\n"))
-          if (line2 startsWith "Command")
-            s"\n$line2"
-          else
-            line2
-        }
-        Console.err.println(u.mkString("\n"))
-      }
-
-      override def showUsageAsError: Unit = showUsage()
     }
   }
 }

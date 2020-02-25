@@ -1,7 +1,4 @@
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.1")
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.1")
-addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.9.0")
 
-resolvers += "JCenter" at "http://jcenter.bintray.com/"
-
-libraryDependencies += "org.clapper" %% "grizzled-scala" % "4.2.0"
+libraryDependencies += "org.clapper" %% "grizzled-scala" % "4.10.0"

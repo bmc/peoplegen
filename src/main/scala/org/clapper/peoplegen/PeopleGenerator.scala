@@ -36,7 +36,7 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
     * @return a `Success` containing a lazy stream of the people, or a
     *         `Failure` on error
     */
-  def generatePeople: Try[Stream[Person]] = {
+  def generatePeople: Try[LazyList[Person]] = {
 
     for {lastNames        <- loadNames("last_names.txt")
          maleFirstNames   <- loadNames("male_first_names.txt")
@@ -50,9 +50,9 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
   private def makePeopleStream(lastNames:        Array[String],
                                femaleFirstNames: Array[String],
                                maleFirstNames:   Array[String]):
-    Try[Stream[Person]] = {
+    Try[LazyList[Person]] = {
 
-    def gen(nextID: Int, malesLeft: Int, femalesLeft: Int): Stream[Person] = {
+    def gen(nextID: Int, malesLeft: Int, femalesLeft: Int): LazyList[Person] = {
       if (femalesLeft > 0) {
         makePerson(nextID, Gender.Female, femaleFirstNames, lastNames) #::
           gen(nextID + 1, malesLeft, femalesLeft - 1)
@@ -62,7 +62,7 @@ class PeopleGenerator(params: Params, msg: MessageHandler) {
           gen(nextID + 1, malesLeft - 1, femalesLeft)
       }
       else
-        Stream.Empty
+        LazyList.empty
     }
 
     val totalMales = (params.totalPeople * params.malePercent) / 100

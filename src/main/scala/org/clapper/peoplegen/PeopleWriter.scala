@@ -58,18 +58,16 @@ trait PeopleWriter {
     *
     * @return `Success` on success, `Failure` on error
     */
-  def write(people: Stream[Person]): Try[Unit] = {
+  def write(people: LazyList[Person]): Try[Unit] = {
     msg.verbose(s"Writing ${params.totalPeople} people records.")
 
-    def convert(): Try[Stream[String]] = {
+    def convert(): Try[LazyList[String]] = {
       timeOp(s"converting data to ${params.fileFormat}", msg) {
         converterFor(params.fileFormat).convertPeople(people)
       }
     }
 
     withOutputFile(params.outputFile) { out =>
-
-
       for { data <- convert()
             _    <- write(data, out)
             _    <- Try { out.flush() } }
@@ -107,7 +105,7 @@ trait PeopleWriter {
     }
   }
 
-  private def write(strings: Stream[String], out: Writer): Try[Unit] = {
+  private def write(strings: LazyList[String], out: Writer): Try[Unit] = {
     timeOp("resolving stream and writing people records to output", msg) {
       Try {
         strings.foreach(s => out.write(s"$s\n"))

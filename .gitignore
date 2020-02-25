@@ -4,3 +4,6 @@
 /project/target
 /project/project
 /src/main/resources/build.properties
+.bloop/
+.metals/
+project/metals.sbt

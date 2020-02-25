@@ -95,7 +95,7 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
     *         objects, depending on the `jsonFormat` and `pretty` parameters.
     *
     */
-  def convertPeople(people: Stream[Person]): Try[Stream[String]] = {
+  def convertPeople(people: LazyList[Person]): Try[LazyList[String]] = {
 
     def convertToJSONArray = {
       msg.verbose(s"Converting people record stream to JSON.")
@@ -104,8 +104,8 @@ class JSONConverter(val headerFormat:  HeaderFormat.Value,
 
     Try {
       jsonFormat match {
-        case JSONFormat.Pretty       => Stream(convertToJSONArray.prettyPrint)
-        case JSONFormat.CompactArray => Stream(convertToJSONArray.compactPrint)
+        case JSONFormat.Pretty       => LazyList(convertToJSONArray.prettyPrint)
+        case JSONFormat.CompactArray => LazyList(convertToJSONArray.compactPrint)
         case JSONFormat.CompactRows  => people.map(_.toJson.compactPrint)
       }
     }

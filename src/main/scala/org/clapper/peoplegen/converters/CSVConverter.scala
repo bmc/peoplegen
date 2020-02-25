@@ -57,7 +57,7 @@ class CSVConverter(val headerFormat:  HeaderFormat.Value,
     *         objects, depending on the `jsonFormat` and `pretty` parameters.
     *
     */
-  def convertPeople(people: Stream[Person]): Try[Stream[String]] = {
+  def convertPeople(people: LazyList[Person]): Try[LazyList[String]] = {
     Try {
       header #:: people.map(convertOne)
     }

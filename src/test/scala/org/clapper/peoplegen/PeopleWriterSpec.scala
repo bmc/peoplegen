@@ -53,12 +53,12 @@ class PeopleWriterSpec extends BaseSpec {
     val params = TestParams.copy(totalPeople = 1)
     val generator = new PeopleGenerator(params, EmptyMessageHandler)
     val t = generator.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
 
     val initialStream = t.get
     val people = initialStream.toVector
     val writer = new TestPeopleWriter(params)
-    writer.write(Stream(people: _*)) shouldBe 'success
+    writer.write(LazyList(people: _*)) shouldBe Symbol("success")
 
     val converter = new TestCSVConverter
     val writtenCSV = writer.outputBuf.asString
@@ -68,7 +68,7 @@ class PeopleWriterSpec extends BaseSpec {
             row: String <- converter.convertPerson(people.head) }
         yield s"$hdr\n$row\n"
 
-    tExpectedCSV shouldBe 'success
+    tExpectedCSV shouldBe Symbol("success")
     val expectedCSV = tExpectedCSV.get.mkString("")
 
     writtenCSV shouldBe expectedCSV
@@ -82,12 +82,12 @@ class PeopleWriterSpec extends BaseSpec {
     )
     val generator = new PeopleGenerator(params, EmptyMessageHandler)
     val t = generator.generatePeople
-    t shouldBe 'success
+    t shouldBe Symbol("success")
 
     val initialStream = t.get
     val people = initialStream.toVector
     val writer = new TestPeopleWriter(params)
-    writer.write(Stream(people: _*)) shouldBe 'success
+    writer.write(LazyList(people: _*)) shouldBe Symbol("success")
 
     val converter = new JSONConverter(
       headerFormat  = TestParams.headerFormat,
@@ -101,10 +101,10 @@ class PeopleWriterSpec extends BaseSpec {
 
     val writtenJSON = writer.outputBuf.asString
     val tExpectedJSON = converter
-      .convertPeople(Stream(people: _*))
+      .convertPeople(LazyList(people: _*))
       .map { stringStream => stringStream.mkString("\n") + "\n" }
 
-    tExpectedJSON shouldBe 'success
+    tExpectedJSON shouldBe Symbol("success")
     val expectedJSON = tExpectedJSON.get
 
     writtenJSON shouldBe expectedJSON
