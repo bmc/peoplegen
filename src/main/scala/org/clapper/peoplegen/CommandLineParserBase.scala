@@ -266,8 +266,6 @@ private[peoplegen] trait CommandLineParserBase {
 
   /** Get the scopt parser object.
     *
-    * @param buildInfo the build information file
-    *
     * @return the parser
     */
   private def getParser(): OptionParser[Params] = {
