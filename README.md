@@ -8,34 +8,29 @@ changed via command line options.
 
 The tool can generate CSV or JSON output.
 
-As is probably obvious, I use this script to generate test data.
+As is probably obvious, I use this program to generate test data.
 
 # Installation
 
 Clone this repo in the usual way. Then, read on.
 
-`peoplegen` is built with [SBT](http://scala-sbt.org), but if you're installing
-on Mac OS X or a Unix-like system, you can just use `bin/activator` in this
-repo.
+`peoplegen` is built with [SBT](http://scala-sbt.org). You'll need to have
+SBT installed to proceed. See <https://www.scala-sbt.org/download.html>
+for details.
 
 ```
-bin/activator install
+sbt install
 ```
 
 will build a fat jar and install it in `$HOME/local/libexec`, by default.
 It'll then install a wrapper `peoplegen` script in `$HOME/local/bin`. You
 can change the prefix from `$HOME/local` to something else by setting the
-`INSTALL_HOME` environment variable. For example:
+`installDir` in `build.sbt` to a different path. See the commented out example
+in `build.sbt`.
 
-```
-INSTALL_HOME=/usr/local bin/activator install
-```
-
-Windows users, you'll have to install SBT manually. Then you can just
-run `sbt install`, instead.
-
-**NOTE**: I don't run this thing on Windows, so I'm probably not going to go 
-out of my way to support it there. Caveat (Windows) user.
+**Note for Windows users:** I don't run this thing on Windows, so I'm probably
+not going to go out of my way to support it there. It *should* work fine, but
+you're on your own if it doesn't.
 
 # Usage
 
