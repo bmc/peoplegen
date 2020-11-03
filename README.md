@@ -1,7 +1,7 @@
 # Random People Generator
 
-This package is just Scala-based command-line tool to create fake people
-records, using first and last names taken at random from United
+This package is a simple Scala-based command-line tool to create fake people
+records, using first, middle, and last names taken at random from United
 States Census Bureau data that's captured in local files. By default, it splits
 the generated names so that half are female and half are male, but that can be
 changed via command line options.
