@@ -2,9 +2,9 @@
 
 This package is a simple Scala-based command-line tool to create fake people
 records, using first, middle, and last names taken at random from United
-States Census Bureau data that's captured in local files. By default, it splits
-the generated names so that half are female and half are male, but that can be
-changed via command line options.
+States Census Bureau data that's captured in local files. By default, it
+splits the generated names so that half are female and half are male,
+but that can be changed via command line options.
 
 The tool can generate CSV or JSON output.
 
@@ -55,7 +55,7 @@ Usage: peoplegen [options] <total> [<outputfile>]
   generate.
 
 * `-m <percent>` or `--male <percent>`: Percent of male records to generate.
-  
+
 **NOTE**: If you specify neither male nor female percentages, both default
 to 50. If you specify only one percentage, the other is set to the remainder.
 (e.g., If you specify only `--male 60`, the female percentage is set to 40.)
@@ -65,14 +65,13 @@ will abort.
 * `--id`: Generate unique per-row ID values.
 
 * `--ssn`: Generate Social Security Number values. Note that the generated
-  SSNs are deliberately invalid, as described at 
+  SSNs are deliberately invalid, as described at
   <https://stackoverflow.com/a/2313726/53495>.
-  
-* `--salaries`: Generate salary data. Salaries are generated as a normal 
-  distribution of integers, around a mean of 72,641 (the U.S. mean salary in 
-  2014), with a sigma (i.e., a spread, or standard deviation) of 20,000. To 
-  change these values, use --salary-mean and
-                                 --salary-sigma.
+
+* `--salaries`: Generate salary data. Salaries are generated as a normal
+  distribution of integers, around a mean of 72,641 (the U.S. mean salary in
+  2014), with a sigma (i.e., a spread, or standard deviation) of 20,000. To
+  change these values, use `--salary-mean` and `--salary-sigma`.
 
 * `--salary-mean <value>`: You can use this option to change the mean salary
   for the salary distribution. **Note**: Changing this value can result
@@ -80,15 +79,17 @@ will abort.
 
 * `--salary-sigma <value>`: You can use this option to change the salary
   generation sigma—the spread, if you prefer. A smaller number means more
-  salaries will cluster around the mean. A larger number means the distribution
-  will be more "spread out". The distribution will still be a normal one (a
-  bell curve), but the mean and the sigma control the _shape_ of the curve.
+  salaries will cluster around the mean. A larger number means the
+  distribution will be more "spread out". The distribution will still be a
+  normal one (a bell curve), but the mean and the sigma control the _shape_
+  of the curve.
 
-* `--year-min <value>`: Specify the starting year for birth dates. Defaults to 
+* `--year-min <value>`: Specify the starting year for birth dates. Defaults to
   65 years ago from this year.
-  
-* `--year-max <value>`: Specify the ending year for birth dates. Defaults to 
-  18 years ago from this year. This year cannot _precede_ the `year-min` value.
+
+* `--year-max <value>`: Specify the ending year for birth dates. Defaults to
+  18 years ago from this year. This year cannot _precede_ the `year-min`
+  value.
 
 * `--delim <c>`: (CSV only) The delimiter to use between columns. The default
   is a comma (","). Any single character is fine. For tab, use the 2-character
@@ -104,16 +105,17 @@ will abort.
 
 * `--english`: Use English (space-separated) names for column names. For
   example: `first name`, `last name`
-  
+
 * `--snake`: Use "snake case" (underscores) names for column names. For
   example: `first_name`, `last_name`
 
 * `-j <format>` or `--json-format <format>`: (JSON only) Specify how the
   JSON should be generated. Legal values:
-    * "rows" (default): generate individual rows of 1-line JSON people records.
+    * "rows" (default): generate individual rows of 1-line JSON people
+      records.
       This format is useful with [Apache Spark](https://spark.apache.org).
     * "array": generate a JSON array with the JSON people records, all on
-      one line        
+      one line
     * "pretty": generate pretty-printed JSON.
 
 * `-v` or `--verbose`: Emit (some) verbose processing messages.
