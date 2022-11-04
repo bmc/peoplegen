@@ -6,11 +6,29 @@ States Census Bureau data that's captured in local files. By default, it
 splits the generated names so that half are female and half are male,
 but that can be changed via command line options.
 
+(Yes, I know there are more than two genders. I support that distinction.
+The Census Bureau data files I'm using are from 2010, and they only supported
+two genders. For now, this program is consistent with that restriction, though
+I'm considering ways to expand it to generate data that's more reflective of
+gender reality.)
+
 The tool can generate CSV or JSON output.
 
 As is probably obvious, I use this program to generate test data.
 
-# Installation
+
+----
+
+**WARNING:** I built this tool for myself. You're welcome to use it,
+read it, comment on it, etc.  However, do _not_ expect me to maintain
+this tool rigorously. It's a playground for me, as well as something I use
+occasionally. That's all.
+
+----
+
+I also built a [Rust version of this thing](https://github.com/bmc/peoplegen-rust).
+
+## Installation
 
 Clone this repo in the usual way. Then, read on.
 
@@ -32,7 +50,7 @@ in `build.sbt`.
 not going to go out of my way to support it there. It *should* work fine, but
 you're on your own if it doesn't.
 
-# Usage
+## Usage
 
 At any time, you can run `peoplegen --help` for a usage summary. The command
 line looks like:
@@ -45,7 +63,7 @@ Usage: peoplegen [options] <total> [<outputfile>]
 * `<outputfile>` is the file to which to write the records; if not supplied,
   the output goes to standard output.
 
-## Options
+### Options
 
 `peoplegen` currently supports the following options:
 
